@@ -54,7 +54,7 @@ const pointToFontPoint = (point: Point2): { x: number; y: number } => {
   return { x: point.x, y: point.y };
 };
 
-const applyBottomReadabilityMirror = (text: Geom2): Geom2 => transforms.mirrorX(text) as Geom2;
+const applyFaceReadabilityMirror = (text: Geom2): Geom2 => transforms.mirrorX(text) as Geom2;
 
 const applyBottomFlipOrientation = (text: Geom2, orientation: BottomTextOrientation = "left-to-right"): Geom2 => {
   switch (orientation) {
@@ -67,12 +67,13 @@ const applyBottomFlipOrientation = (text: Geom2, orientation: BottomTextOrientat
 };
 
 const createTopTextGeometry = (text: Geom2, depth: number, thickness: number): Geom3 => {
-  const extruded = extrusions.extrudeLinear({ height: depth }, text) as Geom3;
+  const mirroredText = applyFaceReadabilityMirror(text);
+  const extruded = extrusions.extrudeLinear({ height: depth }, mirroredText) as Geom3;
   return transforms.translateZ(thickness - depth, extruded) as Geom3;
 };
 
 const createBottomTextGeometry = (text: Geom2, depth: number, orientation?: BottomTextOrientation): Geom3 => {
-  const mirroredText = applyBottomReadabilityMirror(text);
+  const mirroredText = applyFaceReadabilityMirror(text);
   const orientedText = applyBottomFlipOrientation(mirroredText, orientation);
   return extrusions.extrudeLinear({ height: depth }, orientedText) as Geom3;
 };

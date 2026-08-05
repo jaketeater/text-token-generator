@@ -73,6 +73,32 @@ const planarBounds = (geometry: unknown) => {
   return { minX, minY, maxX, maxY };
 };
 
+const contourBounds = (contours: readonly TextContour[]) => {
+  const points = contours.flat();
+  const xs = points.map((point) => Array.isArray(point) ? point[0] : point.x);
+  const ys = points.map((point) => Array.isArray(point) ? point[1] : point.y);
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  };
+};
+
+const fittedTextFromContours = (contours: readonly TextContour[]): FittedTextContours => ({
+  contours,
+  requestedSize: 1,
+  fittedSize: 1,
+  scale: 1,
+  diagnostics: {
+    requestedSize: 1,
+    fittedSize: 1,
+    scale: 1,
+    wasShrunk: false,
+    fitErrors: [],
+  },
+});
 
 const contourCentroid = (contour: readonly { x: number; y: number }[]): [number, number] => {
   const open = contour.length > 1 && contour[0].x === contour.at(-1)?.x && contour[0].y === contour.at(-1)?.y
@@ -193,7 +219,7 @@ describe("default coin geometry", () => {
     });
     const [x, y] = fittedTokenOHoleCenter();
     const probe = primitives.cylinder({
-      center: [x, y, DEFAULT_COIN_PARAMETERS.thickness - DEFAULT_COIN_PARAMETERS.topFace.depth / 2],
+      center: [-x, y, DEFAULT_COIN_PARAMETERS.thickness - DEFAULT_COIN_PARAMETERS.topFace.depth / 2],
       height: DEFAULT_COIN_PARAMETERS.topFace.depth,
       radius: 0.05,
       segments: 16,
@@ -205,7 +231,7 @@ describe("default coin geometry", () => {
 });
 
 describe("face text orientation", () => {
-  it("keeps top text readable from above", () => {
+  it("mirrors top text for export and preview", () => {
     const topText = createFaceText({
       face: "top",
       faceParameters: FACE_PARAMETERS,
@@ -213,7 +239,26 @@ describe("face text orientation", () => {
       thickness: DEFAULT_COIN_PARAMETERS.thickness,
     });
 
-    expectPlanarBounds(topText.geometry, { minX: 1, minY: 2, maxX: 3, maxY: 4 });
+    expectPlanarBounds(topText.geometry, { minX: -3, minY: 2, maxX: -1, maxY: 4 });
+  });
+
+  it("mirrors asymmetric top text contours", () => {
+    const sourceContours = textToContours("L", { textSizeMm: 6 }).contours
+      .map((contour) => contour.map((point) => [point.x, point.y] as const));
+    const sourceBounds = contourBounds(sourceContours);
+    const topText = createFaceText({
+      face: "top",
+      faceParameters: { ...FACE_PARAMETERS, text: "L", textSize: 6 },
+      fittedText: fittedTextFromContours(sourceContours),
+      thickness: DEFAULT_COIN_PARAMETERS.thickness,
+    });
+
+    expectPlanarBounds(topText.geometry, {
+      minX: -sourceBounds.maxX,
+      minY: sourceBounds.minY,
+      maxX: -sourceBounds.minX,
+      maxY: sourceBounds.maxY,
+    });
   });
 
   it.each([
