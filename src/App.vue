@@ -4,7 +4,7 @@ import CoinControls from './components/CoinControls.vue'
 import FaceControls from './components/FaceControls.vue'
 import PreviewToolbar from './components/PreviewToolbar.vue'
 import ValidationMessages from './components/ValidationMessages.vue'
-import { downloadCompatibilityTest3mf } from './export/export3mf'
+import { downloadCoin3mf } from './export/export3mf'
 import { validateCoinParameters } from './geometry/validateGeometry'
 import { DEFAULT_COIN_PARAMETERS } from './model/defaults'
 import type { CoinParameters, FaceParameters } from './model/coinParameters'
@@ -71,7 +71,7 @@ const previewStyle = computed(() => ({
       </aside>
 
       <section class="panel preview-panel">
-        <PreviewToolbar :has-blocking-errors="hasBlockingErrors" @export="downloadCompatibilityTest3mf" />
+        <PreviewToolbar :has-blocking-errors="hasBlockingErrors" @export="downloadCoin3mf(coinParameters)" />
         <ValidationMessages :messages="validationResult.messages" />
 
         <div class="preview-canvas" aria-label="Preview placeholder">
