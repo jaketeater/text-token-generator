@@ -20,7 +20,7 @@ const title = 'Text Token Generator'
         <p>Placeholder settings for text, typography, dimensions, and export options.</p>
         <button type="button">Add control</button>
         <button type="button" class="export-button" @click="downloadCompatibilityTest3mf">
-          Download 3MF compatibility test
+          Download generated 3MF
         </button>
       </aside>
 

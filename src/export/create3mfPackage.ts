@@ -5,6 +5,8 @@ export interface PackageFile {
   content: string
 }
 
+const MODEL_PATH = '3D/3dmodel.model'
+
 export const create3mfPackage = (modelXml: string): Uint8Array => {
   const files: PackageFile[] = [
     {
@@ -20,12 +22,12 @@ export const create3mfPackage = (modelXml: string): Uint8Array => {
       path: '_rels/.rels',
       content: `<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rel-0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" Target="/3D/3dmodel.model" />
+  <Relationship Id="rel-0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel" Target="/${MODEL_PATH}" />
 </Relationships>
 `,
     },
     {
-      path: '3D/3dmodel.model',
+      path: MODEL_PATH,
       content: modelXml,
     },
     {

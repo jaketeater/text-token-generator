@@ -10,8 +10,10 @@ export interface TriangleMesh {
 
 const vertexKey = (point: Vertex): string => point.map((value) => value.toFixed(6)).join(',')
 
+const toVertex = (point: readonly number[]): Vertex => [point[0] ?? 0, point[1] ?? 0, point[2] ?? 0]
+
 /**
- * Converts a simple JSCAD geom3 into an indexed triangle mesh.
+ * Converts a JSCAD geom3 into an indexed triangle mesh.
  *
  * JSCAD polygons may have more than three vertices, so each polygon is triangulated
  * with a fan from its first vertex. Vertices are de-duplicated by rounded position to
@@ -22,8 +24,9 @@ export const meshToTriangles = (geometry: geometries.geom3.Geom3): TriangleMesh 
   const triangles: Triangle[] = []
   const vertexIndexes = new Map<string, number>()
 
-  const getVertexIndex = (point: Vertex): number => {
-    const key = vertexKey(point)
+  const getVertexIndex = (point: readonly number[]): number => {
+    const vertex = toVertex(point)
+    const key = vertexKey(vertex)
     const existingIndex = vertexIndexes.get(key)
 
     if (existingIndex !== undefined) {
@@ -31,14 +34,14 @@ export const meshToTriangles = (geometry: geometries.geom3.Geom3): TriangleMesh 
     }
 
     const index = vertices.length
-    vertices.push(point)
+    vertices.push(vertex)
     vertexIndexes.set(key, index)
 
     return index
   }
 
   for (const polygon of geometries.geom3.toPolygons(geometry)) {
-    const points = polygon.vertices as Vertex[]
+    const points = polygon.vertices
 
     if (points.length < 3) {
       continue
