@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { downloadCompatibilityTest3mf } from './export/export3mf'
+
 const title = 'Text Token Generator'
 </script>
 
@@ -17,6 +19,9 @@ const title = 'Text Token Generator'
         <h2>Controls</h2>
         <p>Placeholder settings for text, typography, dimensions, and export options.</p>
         <button type="button">Add control</button>
+        <button type="button" class="export-button" @click="downloadCompatibilityTest3mf">
+          Download 3MF compatibility test
+        </button>
       </aside>
 
       <section class="panel preview-panel">
@@ -104,6 +109,15 @@ h1 {
   background: #4f46e5;
   font-weight: 700;
   cursor: pointer;
+}
+
+.controls-panel button + button {
+  margin-top: 12px;
+}
+
+.export-button {
+  display: block;
+  background: #111827;
 }
 
 .preview-panel {
