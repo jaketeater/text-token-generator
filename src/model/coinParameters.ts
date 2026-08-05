@@ -2,7 +2,7 @@ export const COIN_FIT_MODES = ["fixed", "shrink-only", "wrap-text"] as const;
 
 export type CoinFitMode = (typeof COIN_FIT_MODES)[number];
 
-export const BOTTOM_TEXT_ORIENTATIONS = ["upright", "flipped"] as const;
+export const BOTTOM_TEXT_ORIENTATIONS = ["top-to-bottom", "left-to-right"] as const;
 
 export type BottomTextOrientation = (typeof BOTTOM_TEXT_ORIENTATIONS)[number];
 

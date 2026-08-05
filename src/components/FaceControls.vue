@@ -64,12 +64,12 @@ const face = defineModel<FaceParameters>({ required: true })
     <fieldset v-if="faceName === 'bottom'" class="choice-group">
       <legend>Bottom orientation</legend>
       <label>
-        <input v-model="face.bottomTextOrientation" type="radio" value="flipped" />
-        Flip for underside
+        <input v-model="face.bottomTextOrientation" type="radio" value="top-to-bottom" />
+        Top-to-bottom
       </label>
       <label>
-        <input v-model="face.bottomTextOrientation" type="radio" value="upright" />
-        Keep upright
+        <input v-model="face.bottomTextOrientation" type="radio" value="left-to-right" />
+        Left-to-right
       </label>
     </fieldset>
   </section>
