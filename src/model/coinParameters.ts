@@ -1,4 +1,4 @@
-export const COIN_FIT_MODES = ["fixed", "shrink-only", "wrap-text"] as const;
+export const COIN_FIT_MODES = ["fixed", "shrink-only"] as const;
 
 export type CoinFitMode = (typeof COIN_FIT_MODES)[number];
 
