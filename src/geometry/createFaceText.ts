@@ -19,6 +19,10 @@ export interface FittedTextContours {
   requestedSize: number;
   /** Text size after fitting was applied. */
   fittedSize: number;
+  /** Scale applied by the circle fitting step. */
+  scale: number;
+  /** Diagnostics from fitting the real flattened text contours to the usable circle. */
+  diagnostics: import("./fitTextToCircle").TextCircleFitDiagnostics;
 }
 
 export interface CreateFaceTextInput {
@@ -32,6 +36,7 @@ export interface FaceTextMetadata {
   face: FaceTextFace;
   requestedSize: number;
   fittedSize: number;
+  scale: number;
   depth: number;
   zBounds: readonly [number, number];
 }
@@ -104,6 +109,7 @@ export const createFaceText = ({
       face,
       requestedSize: fittedText.requestedSize,
       fittedSize: fittedText.fittedSize,
+      scale: fittedText.scale,
       depth,
       zBounds,
     },
