@@ -27,7 +27,7 @@ export const DEFAULT_COIN_PARAMETERS: CoinParameters = {
   borderColor: "#9ca3af",
   topFace: DEFAULT_TOP_FACE_PARAMETERS,
   bottomFace: DEFAULT_BOTTOM_FACE_PARAMETERS,
-  fitMode: "shrink-text",
+  fitMode: "shrink-only",
   circleSegments: 128,
   curveTolerance: 0.01,
 };

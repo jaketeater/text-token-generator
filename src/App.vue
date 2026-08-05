@@ -5,35 +5,35 @@ import FaceControls from './components/FaceControls.vue'
 import PreviewToolbar from './components/PreviewToolbar.vue'
 import ValidationMessages from './components/ValidationMessages.vue'
 import { downloadCoin3mf } from './export/export3mf'
+import { fitTextToCircle } from './geometry/fitTextToCircle'
+import { textToContours } from './geometry/textContours'
 import { validateCoinParameters } from './geometry/validateGeometry'
 import { DEFAULT_COIN_PARAMETERS } from './model/defaults'
 import type { CoinParameters, FaceParameters } from './model/coinParameters'
+import type { TextCircleFitDiagnostics, TextPoint } from './geometry/fitTextToCircle'
 
 const title = 'Text Token Generator'
-const averageCharacterWidthToTextSizeRatio = 0.62
-
 const coinParameters = reactive<CoinParameters>(structuredClone(DEFAULT_COIN_PARAMETERS))
 
 const validationResult = computed(() => validateCoinParameters(coinParameters))
 const hasBlockingErrors = computed(() => validationResult.value.errors.length > 0)
 
-const usableTextDiameter = computed(() => Math.max(0, coinParameters.diameter - coinParameters.borderWidth * 2))
+const usableTextRadius = computed(() => Math.max(0, coinParameters.diameter / 2 - coinParameters.borderWidth))
 
-const getFittedTextSize = (face: FaceParameters): number => {
-  if (!face.autoFit) {
-    return face.textSize
-  }
+const getTextFitDiagnostics = (face: FaceParameters): TextCircleFitDiagnostics => {
+  const contours = textToContours(face.text, {
+    textSizeMm: face.textSize,
+    curveTolerance: coinParameters.curveTolerance,
+  }).contours.map((contour) => contour.map((point) => [point.x, point.y] as TextPoint))
+  const fitMode = face.autoFit && coinParameters.fitMode === 'shrink-only' ? 'shrink-only' : 'fixed'
 
-  const estimatedTextWidth = face.text.trim().length * face.textSize * averageCharacterWidthToTextSizeRatio
-  if (estimatedTextWidth <= 0 || estimatedTextWidth <= usableTextDiameter.value) {
-    return face.textSize
-  }
-
-  return face.textSize * (usableTextDiameter.value / estimatedTextWidth)
+  return fitTextToCircle(contours, face.textSize, usableTextRadius.value, face.rotationDegrees, fitMode).diagnostics
 }
 
-const fittedTopTextSize = computed(() => getFittedTextSize(coinParameters.topFace))
-const fittedBottomTextSize = computed(() => getFittedTextSize(coinParameters.bottomFace))
+const topTextFitDiagnostics = computed(() => getTextFitDiagnostics(coinParameters.topFace))
+const bottomTextFitDiagnostics = computed(() => getTextFitDiagnostics(coinParameters.bottomFace))
+const fittedTopTextSize = computed(() => topTextFitDiagnostics.value.fittedSize)
+const fittedBottomTextSize = computed(() => bottomTextFitDiagnostics.value.fittedSize)
 
 const previewStyle = computed(() => ({
   '--coin-body-color': coinParameters.bodyColor,
@@ -60,13 +60,13 @@ const previewStyle = computed(() => ({
           v-model="coinParameters.topFace"
           title="Top face"
           face-name="top"
-          :fitted-text-size="fittedTopTextSize"
+          :fit-diagnostics="topTextFitDiagnostics"
         />
         <FaceControls
           v-model="coinParameters.bottomFace"
           title="Bottom face"
           face-name="bottom"
-          :fitted-text-size="fittedBottomTextSize"
+          :fit-diagnostics="bottomTextFitDiagnostics"
         />
       </aside>
 

@@ -17,7 +17,7 @@ describe("fitTextToCircle", () => {
       12,
       10,
       90,
-      "none",
+      "fixed",
     );
 
     expectPointClose(result.points[0], [0, -2]);
@@ -34,11 +34,11 @@ describe("fitTextToCircle", () => {
       20,
       5,
       0,
-      "shrink-text",
+      "shrink-only",
     );
 
-    expect(result.appliedScale).toBeCloseTo(0.5);
-    expect(result.effectiveSize).toBeCloseTo(10);
+    expect(result.scale).toBeCloseTo(0.5);
+    expect(result.fittedSize).toBeCloseTo(10);
     expect(result.diagnostics.requiredRadius).toBeCloseTo(5);
     expect(result.diagnostics.fits).toBe(true);
     expect(result.diagnostics.wasShrunk).toBe(true);
@@ -53,11 +53,11 @@ describe("fitTextToCircle", () => {
       20,
       5,
       0,
-      "none",
+      "fixed",
     );
 
-    expect(result.appliedScale).toBe(1);
-    expect(result.effectiveSize).toBe(20);
+    expect(result.scale).toBe(1);
+    expect(result.fittedSize).toBe(20);
     expect(result.diagnostics.fits).toBe(false);
     expect(result.diagnostics.error).toMatchObject({
       code: "text.fixedSizeOverflow",

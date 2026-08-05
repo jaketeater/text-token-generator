@@ -1,6 +1,8 @@
 import type { CoinFitMode } from "../model/coinParameters";
 
 export type TextPoint = readonly [number, number];
+export type TextContour = readonly TextPoint[];
+export type CircleTextFitMode = Extract<CoinFitMode, "fixed" | "shrink-only">;
 
 export interface TextBounds {
   minX: number;
@@ -22,15 +24,19 @@ export interface FixedModeFitError {
 }
 
 export interface TextCircleFitDiagnostics {
-  fitMode: CoinFitMode;
+  fitMode: CircleTextFitMode;
   requestedSize: number;
+  fittedSize: number;
   effectiveSize: number;
+  scale: number;
   appliedScale: number;
   usableRadius: number;
   requiredRadius: number;
   overflowRadius: number;
   fits: boolean;
   wasShrunk: boolean;
+  fitErrors: FixedModeFitError[];
+  transformedContours: TextPoint[][];
   boundsBeforeCentering: TextBounds | null;
   boundsAfterTransform: TextBounds | null;
   error?: FixedModeFitError;
@@ -38,9 +44,12 @@ export interface TextCircleFitDiagnostics {
 
 export interface TextCircleFitResult {
   requestedSize: number;
+  fittedSize: number;
   effectiveSize: number;
+  scale: number;
   appliedScale: number;
   points: TextPoint[];
+  contours: TextPoint[][];
   diagnostics: TextCircleFitDiagnostics;
 }
 
@@ -79,7 +88,7 @@ const getBounds = (points: readonly TextPoint[]): TextBounds | null => {
 };
 
 const getMaximumRadius = (points: readonly TextPoint[]): number =>
-  points.reduce((maximumRadius, [x, y]) => Math.max(maximumRadius, Math.sqrt(x * x + y * y)), 0);
+  points.reduce((maximumRadius, [x, y]) => Math.max(maximumRadius, Math.hypot(x, y)), 0);
 
 const buildFixedModeError = (requestedSize: number, usableRadius: number, requiredRadius: number): FixedModeFitError => ({
   code: "text.fixedSizeOverflow",
@@ -89,13 +98,28 @@ const buildFixedModeError = (requestedSize: number, usableRadius: number, requir
   requiredRadius,
 });
 
+const normalizeContours = (contoursOrPoints: readonly TextContour[] | readonly TextPoint[]): TextPoint[][] => {
+  if (contoursOrPoints.length === 0) {
+    return [];
+  }
+
+  const firstEntry = contoursOrPoints[0];
+  if (Array.isArray(firstEntry) && typeof firstEntry[0] === "number") {
+    return [(contoursOrPoints as readonly TextPoint[]).map((point) => [point[0], point[1]])];
+  }
+
+  return (contoursOrPoints as readonly TextContour[]).map((contour) => contour.map((point) => [point[0], point[1]]));
+};
+
 export const fitTextToCircle = (
-  flattenedTextPoints: readonly TextPoint[],
+  flattenedTextContours: readonly TextContour[] | readonly TextPoint[],
   requestedSize: number,
   usableRadius: number,
   rotationDegrees: number,
-  fitMode: CoinFitMode,
+  fitMode: CircleTextFitMode,
 ): TextCircleFitResult => {
+  const sourceContours = normalizeContours(flattenedTextContours);
+  const flattenedTextPoints = sourceContours.flat();
   const boundsBeforeCentering = getBounds(flattenedTextPoints);
   const centerX = boundsBeforeCentering?.centerX ?? 0;
   const centerY = boundsBeforeCentering?.centerY ?? 0;
@@ -103,40 +127,49 @@ export const fitTextToCircle = (
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
 
-  const centeredRotatedPoints = flattenedTextPoints.map<TextPoint>(([x, y]) => {
+  const centeredRotatedContours = sourceContours.map((contour) => contour.map<TextPoint>(([x, y]) => {
     const centeredX = x - centerX;
     const centeredY = y - centerY;
 
     return [centeredX * cos - centeredY * sin, centeredX * sin + centeredY * cos];
-  });
-
-  const requiredRadiusBeforeScale = getMaximumRadius(centeredRotatedPoints);
-  const shouldShrink = fitMode === "shrink-text" && requiredRadiusBeforeScale > usableRadius && usableRadius >= 0;
-  const appliedScale = shouldShrink ? usableRadius / requiredRadiusBeforeScale : 1;
-  const transformedPoints = centeredRotatedPoints.map<TextPoint>(([x, y]) => [x * appliedScale, y * appliedScale]);
+  }));
+  const centeredRotatedPoints = centeredRotatedContours.flat();
+  const rmax = getMaximumRadius(centeredRotatedPoints);
+  const shouldShrink = fitMode === "shrink-only" && rmax > usableRadius && usableRadius >= 0;
+  const scale = shouldShrink && rmax > 0 ? usableRadius / rmax : 1;
+  const transformedContours = centeredRotatedContours.map((contour) => contour.map<TextPoint>(([x, y]) => [x * scale, y * scale]));
+  const transformedPoints = transformedContours.flat();
   const requiredRadius = getMaximumRadius(transformedPoints);
-  const fits = requiredRadius <= usableRadius;
-  const effectiveSize = requestedSize * appliedScale;
-  const error = !fits && fitMode === "none" ? buildFixedModeError(requestedSize, usableRadius, requiredRadius) : undefined;
+  const fits = requiredRadius <= usableRadius + 1e-10;
+  const fittedSize = requestedSize * scale;
+  const fixedModeError = !fits && fitMode === "fixed" ? buildFixedModeError(requestedSize, usableRadius, requiredRadius) : undefined;
+  const fitErrors = fixedModeError ? [fixedModeError] : [];
 
   return {
     requestedSize,
-    effectiveSize,
-    appliedScale,
+    fittedSize,
+    effectiveSize: fittedSize,
+    scale,
+    appliedScale: scale,
     points: transformedPoints,
+    contours: transformedContours,
     diagnostics: {
       fitMode,
       requestedSize,
-      effectiveSize,
-      appliedScale,
+      fittedSize,
+      effectiveSize: fittedSize,
+      scale,
+      appliedScale: scale,
       usableRadius,
       requiredRadius,
       overflowRadius: Math.max(0, requiredRadius - usableRadius),
       fits,
-      wasShrunk: appliedScale < 1,
+      wasShrunk: scale < 1,
+      fitErrors,
+      transformedContours,
       boundsBeforeCentering,
       boundsAfterTransform: getBounds(transformedPoints),
-      error,
+      error: fixedModeError,
     },
   };
 };

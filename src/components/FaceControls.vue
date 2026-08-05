@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { FaceParameters } from '../model/coinParameters'
+import type { TextCircleFitDiagnostics } from '../geometry/fitTextToCircle'
 
 defineProps<{
   title: string
   faceName: 'top' | 'bottom'
-  fittedTextSize?: number
+  fitDiagnostics?: TextCircleFitDiagnostics
 }>()
 
 const face = defineModel<FaceParameters>({ required: true })
@@ -31,8 +32,9 @@ const face = defineModel<FaceParameters>({ required: true })
       </label>
     </div>
 
-    <p v-if="fittedTextSize !== undefined && fittedTextSize < face.textSize" class="fit-note">
-      Requested {{ face.textSize.toFixed(2) }} mm; fitted {{ fittedTextSize.toFixed(2) }} mm.
+    <p v-if="fitDiagnostics !== undefined && (fitDiagnostics.wasShrunk || fitDiagnostics.fitErrors.length > 0)" class="fit-note">
+      Requested {{ fitDiagnostics.requestedSize.toFixed(2) }} mm; fitted {{ fitDiagnostics.fittedSize.toFixed(2) }} mm.
+      <span v-if="fitDiagnostics.fitErrors.length > 0">Fixed size exceeds usable radius.</span>
     </p>
 
     <div class="split-fields">

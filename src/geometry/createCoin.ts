@@ -11,7 +11,7 @@ import {
 } from "../model/generatedCoin";
 import { createBorderRing, createCenteredCoinCylinder } from "./createBorderRing";
 import { createFaceText, type FittedTextContours, type TextContour } from "./createFaceText";
-import { fitTextToCircle, type TextPoint } from "./fitTextToCircle";
+import { fitTextToCircle, type CircleTextFitMode } from "./fitTextToCircle";
 import { textToContours } from "./textContours";
 
 const createPart = (
@@ -39,27 +39,20 @@ const createFittedTextContours = (
   const scaledContours = textToContours(faceParameters.text, { textSizeMm: faceParameters.textSize }).contours.map((contour) =>
     contour.map((point) => [point.x, point.y] as const),
   );
-  const contourLengths = scaledContours.map((contour) => contour.length);
-  const flattenedPoints = scaledContours.flat() as TextPoint[];
-  const effectiveFitMode = faceParameters.autoFit ? fitMode : "none";
+  const effectiveFitMode: CircleTextFitMode = faceParameters.autoFit && fitMode === "shrink-only" ? "shrink-only" : "fixed";
   const fittedText = fitTextToCircle(
-    flattenedPoints,
+    scaledContours,
     faceParameters.textSize,
     usableRadius,
     faceParameters.rotationDegrees,
     effectiveFitMode,
   );
-  let pointIndex = 0;
-  const fittedContours = contourLengths.map((length) => {
-    const contour = fittedText.points.slice(pointIndex, pointIndex + length);
-    pointIndex += length;
-    return contour;
-  });
-
   return {
-    contours: fittedContours,
+    contours: fittedText.contours,
     requestedSize: fittedText.requestedSize,
-    fittedSize: fittedText.effectiveSize,
+    fittedSize: fittedText.fittedSize,
+    scale: fittedText.scale,
+    diagnostics: fittedText.diagnostics,
   };
 };
 
