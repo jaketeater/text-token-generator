@@ -6,8 +6,6 @@ import { COIN_PART_IDS, COIN_PART_NAMES, type GeneratedCoinPart } from "../model
 
 export type FaceTextFace = "top" | "bottom";
 
-export type BottomFlipOrientation = BottomTextOrientation | "top-to-bottom" | "left-to-right";
-
 export type Point2 = readonly [number, number] | { readonly x: number; readonly y: number };
 
 export type TextContour = readonly Point2[];
@@ -27,7 +25,7 @@ export interface FittedTextContours {
 
 export interface CreateFaceTextInput {
   face: FaceTextFace;
-  faceParameters: FaceParameters & { bottomTextOrientation?: BottomFlipOrientation };
+  faceParameters: FaceParameters;
   fittedText: FittedTextContours;
   thickness: number;
 }
@@ -58,16 +56,13 @@ const pointToFontPoint = (point: Point2): { x: number; y: number } => {
 
 const applyBottomReadabilityMirror = (text: Geom2): Geom2 => transforms.mirrorX(text) as Geom2;
 
-const applyBottomFlipOrientation = (text: Geom2, orientation?: BottomFlipOrientation): Geom2 => {
+const applyBottomFlipOrientation = (text: Geom2, orientation: BottomTextOrientation = "left-to-right"): Geom2 => {
   switch (orientation) {
     case "top-to-bottom":
       return transforms.rotateX(Math.PI, text) as Geom2;
     case "left-to-right":
-    case "flipped":
-      return transforms.rotateY(Math.PI, text) as Geom2;
-    case "upright":
     default:
-      return text;
+      return transforms.rotateY(Math.PI, text) as Geom2;
   }
 };
 
@@ -76,7 +71,7 @@ const createTopTextGeometry = (text: Geom2, depth: number, thickness: number): G
   return transforms.translateZ(thickness - depth, extruded) as Geom3;
 };
 
-const createBottomTextGeometry = (text: Geom2, depth: number, orientation?: BottomFlipOrientation): Geom3 => {
+const createBottomTextGeometry = (text: Geom2, depth: number, orientation?: BottomTextOrientation): Geom3 => {
   const mirroredText = applyBottomReadabilityMirror(text);
   const orientedText = applyBottomFlipOrientation(mirroredText, orientation);
   return extrusions.extrudeLinear({ height: depth }, orientedText) as Geom3;

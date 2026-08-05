@@ -16,7 +16,7 @@ export const DEFAULT_BOTTOM_FACE_PARAMETERS: FaceParameters = {
   color: "#111827",
   rotationDegrees: 0,
   autoFit: true,
-  bottomTextOrientation: "flipped",
+  bottomTextOrientation: "left-to-right",
 };
 
 export const DEFAULT_COIN_PARAMETERS: CoinParameters = {

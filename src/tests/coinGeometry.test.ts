@@ -3,6 +3,8 @@ import modeling from "@jscad/modeling";
 
 import { generateCoin } from "../export/export3mf";
 import { DEFAULT_COIN_PARAMETERS } from "../model/defaults";
+import { createFaceText, type FittedTextContours, type TextContour } from "../geometry/createFaceText";
+import type { BottomTextOrientation, FaceParameters } from "../model/coinParameters";
 
 const { booleans, measurements, primitives } = modeling;
 
@@ -32,6 +34,49 @@ const radialBounds = (geometry: unknown) => {
 };
 
 const volume = (geometry: unknown) => measurements.measureVolume(geometry as never);
+
+const ASYMMETRIC_TEXT_CONTOURS: readonly TextContour[] = [
+  [[1, 2], [3, 2], [1, 4]],
+];
+
+const FITTED_TEXT: FittedTextContours = {
+  contours: ASYMMETRIC_TEXT_CONTOURS,
+  requestedSize: 1,
+  fittedSize: 1,
+  scale: 1,
+  diagnostics: {
+    requestedSize: 1,
+    fittedSize: 1,
+    scale: 1,
+    wasShrunk: false,
+    fitErrors: [],
+  },
+};
+
+const FACE_PARAMETERS: FaceParameters = {
+  text: "L",
+  textSize: 1,
+  depth: 0.2,
+  color: "#000000",
+  rotationDegrees: 0,
+  autoFit: false,
+};
+
+const planarBounds = (geometry: unknown) => {
+  const [[minX, minY], [maxX, maxY]] = measurements.measureBoundingBox(geometry as never);
+  return { minX, minY, maxX, maxY };
+};
+
+const expectPlanarBounds = (
+  geometry: unknown,
+  expected: { minX: number; minY: number; maxX: number; maxY: number },
+) => {
+  const actual = planarBounds(geometry);
+  approximate(actual.minX, expected.minX);
+  approximate(actual.minY, expected.minY);
+  approximate(actual.maxX, expected.maxX);
+  approximate(actual.maxY, expected.maxY);
+};
 
 describe("default coin geometry", () => {
   it("generates populated, fitted, non-overlapping production coin parts", () => {
@@ -78,4 +123,34 @@ describe("default coin geometry", () => {
       VOLUME_TOLERANCE_MM3,
     );
   });
+});
+
+describe("face text orientation", () => {
+  it("keeps top text readable from above", () => {
+    const topText = createFaceText({
+      face: "top",
+      faceParameters: FACE_PARAMETERS,
+      fittedText: FITTED_TEXT,
+      thickness: DEFAULT_COIN_PARAMETERS.thickness,
+    });
+
+    expectPlanarBounds(topText.geometry, { minX: 1, minY: 2, maxX: 3, maxY: 4 });
+  });
+
+  it.each([
+    ["top-to-bottom", { minX: -3, minY: -4, maxX: -1, maxY: -2 }],
+    ["left-to-right", { minX: 1, minY: 2, maxX: 3, maxY: 4 }],
+  ] satisfies readonly [BottomTextOrientation, { minX: number; minY: number; maxX: number; maxY: number }][])(
+    "mirrors bottom text for underside readability before applying the %s flip",
+    (bottomTextOrientation, expectedBounds) => {
+      const bottomText = createFaceText({
+        face: "bottom",
+        faceParameters: { ...FACE_PARAMETERS, bottomTextOrientation },
+        fittedText: FITTED_TEXT,
+        thickness: DEFAULT_COIN_PARAMETERS.thickness,
+      });
+
+      expectPlanarBounds(bottomText.geometry, expectedBounds);
+    },
+  );
 });
