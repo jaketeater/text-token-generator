@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { colors, primitives, transforms } from "@jscad/modeling";
-
-const { colorize } = colors;
-const { cylinder, cuboid } = primitives;
-const { translate } = transforms;
+import { colors, transforms } from "@jscad/modeling";
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import type { CoinParameters } from "../model/coinParameters";
 import type { CoinPartKey, GeneratedCoin } from "../model/generatedCoin";
@@ -14,6 +10,9 @@ import { DEFAULT_CAMERA_PRESET } from "../preview/cameraViews";
 import { createRenderer } from "../preview/createRenderer";
 import type { PreviewRenderer, PreviewSolid } from "../preview/createRenderer";
 import { colorForRenderer, DEFAULT_PREVIEW_COLORS } from "../preview/previewColors";
+
+const { colorize } = colors;
+const { translate } = transforms;
 
 const PART_KEYS: CoinPartKey[] = ["body", "borderRing", "topText", "bottomText"];
 const EXPLODED_OFFSETS: Record<CoinPartKey, [number, number, number]> = {
@@ -27,7 +26,7 @@ type GenerateCoin = (parameters: CoinParameters) => GeneratedCoin | Promise<Gene
 
 const props = withDefaults(defineProps<{
   parameters?: CoinParameters;
-  generateCoin?: GenerateCoin;
+  generateCoin: GenerateCoin;
   debounceMs?: number;
 }>(), {
   parameters: () => DEFAULT_COIN_PARAMETERS,
@@ -52,23 +51,6 @@ let debounceId: number | undefined;
 let generationId = 0;
 let resizeObserver: ResizeObserver | undefined;
 
-const createFallbackCoin = (parameters: CoinParameters): GeneratedCoin => {
-  const radius = parameters.diameter / 2;
-  const body = cylinder({ radius, height: parameters.thickness, segments: parameters.circleSegments });
-  const ring = cylinder({ radius, height: parameters.topFace.depth, segments: parameters.circleSegments });
-  const topText = cuboid({ size: [radius, parameters.topFace.textSize, parameters.topFace.depth] });
-  const bottomText = cuboid({ size: [radius, parameters.bottomFace.textSize, parameters.bottomFace.depth] });
-
-  return {
-    parts: {
-      body: { id: "coin-body", name: COIN_PART_NAMES.body, displayName: COIN_PART_NAMES.body, geometry: body, color: parameters.bodyColor, metadata: { id: "coin-body", key: "body", displayName: COIN_PART_NAMES.body } },
-      borderRing: { id: "border-ring", name: COIN_PART_NAMES.borderRing, displayName: COIN_PART_NAMES.borderRing, geometry: translate([0, 0, parameters.thickness / 2], ring), color: parameters.borderColor, metadata: { id: "border-ring", key: "borderRing", displayName: COIN_PART_NAMES.borderRing } },
-      topText: { id: "top-text", name: COIN_PART_NAMES.topText, displayName: COIN_PART_NAMES.topText, geometry: translate([0, radius / 3, parameters.thickness / 2 + parameters.topFace.depth], topText), color: parameters.topFace.color, metadata: { id: "top-text", key: "topText", displayName: COIN_PART_NAMES.topText } },
-      bottomText: { id: "bottom-text", name: COIN_PART_NAMES.bottomText, displayName: COIN_PART_NAMES.bottomText, geometry: translate([0, -radius / 3, -parameters.thickness / 2 - parameters.bottomFace.depth], bottomText), color: parameters.bottomFace.color, metadata: { id: "bottom-text", key: "bottomText", displayName: COIN_PART_NAMES.bottomText } },
-    },
-  };
-};
-
 const solids = computed<PreviewSolid[]>(() => {
   if (!generatedCoin.value) return [];
   return PART_KEYS.filter((key) => visibleParts[key]).map((key) => {
@@ -86,7 +68,7 @@ const regenerate = async () => {
   isLoading.value = true;
   errorMessage.value = "";
   try {
-    const coin = await (props.generateCoin?.(props.parameters) ?? createFallbackCoin(props.parameters));
+    const coin = await props.generateCoin(props.parameters);
     if (id !== generationId) return;
     generatedCoin.value = coin;
     await nextTick();
@@ -94,7 +76,7 @@ const regenerate = async () => {
   } catch (error) {
     if (id !== generationId) return;
     generatedCoin.value = null;
-    errorMessage.value = error instanceof Error ? error.message : "Unable to load fonts or generate preview geometry.";
+    errorMessage.value = error instanceof Error ? error.message : "Unable to generate preview geometry. The 3D preview is hidden until generation succeeds.";
     renderCurrentSolids();
   } finally {
     if (id === generationId) isLoading.value = false;
