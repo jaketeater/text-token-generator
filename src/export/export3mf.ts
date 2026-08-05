@@ -6,6 +6,7 @@ import { meshToTriangles } from './meshToTriangles'
 import type { CoinParameters } from '../model/coinParameters'
 import type { GeneratedCoin } from '../model/generatedCoin'
 import { createCoin } from '../geometry/createCoin'
+import { validateCoinParameters, withGeometryValidationInputs } from '../geometry/validateGeometry'
 
 const COMPATIBILITY_EXPORT_FILE_NAME = 'coin-compatibility-test.3mf'
 const DEFAULT_EXPORT_FILE_NAME = 'coin.3mf'
@@ -43,9 +44,20 @@ export const createCoinModelParts = (coin: GeneratedCoin): ModelPart[] => [
 ]
 
 export const createCoin3mf = (coinOrParameters: GeneratedCoin | CoinParameters): Uint8Array => {
-  const coin = isGeneratedCoin(coinOrParameters) ? coinOrParameters : generateCoin(coinOrParameters)
+  if (isGeneratedCoin(coinOrParameters)) {
+    if (coinOrParameters.validation.errors.length > 0) {
+      throw new Error(`Cannot export invalid coin geometry: ${coinOrParameters.validation.errors.map((error) => error.message).join(' ')}`)
+    }
 
-  return create3mfPackage(createModelXml(createCoinModelParts(coin)))
+    return create3mfPackage(createModelXml(createCoinModelParts(coinOrParameters)))
+  }
+
+  const validation = validateCoinParameters(withGeometryValidationInputs(coinOrParameters))
+  if (validation.errors.length > 0) {
+    throw new Error(`Cannot export invalid coin parameters: ${validation.errors.map((error) => error.message).join(' ')}`)
+  }
+
+  return create3mfPackage(createModelXml(createCoinModelParts(generateCoin(coinOrParameters))))
 }
 
 const sanitizeFilenamePart = (value: string): string => {
