@@ -1,22 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { classifyContours } from "../font/classifyContours";
 import { textToContours, type TextContour } from "../geometry/textContours";
 
 const PLANNING_DOCUMENT_STRINGS = ["ABC", "O", "B8", "$10", "100", "MOM"] as const;
 
-const signedArea = (contour: TextContour): number => {
-  let area = 0;
-
-  for (let index = 0; index < contour.length - 1; index += 1) {
-    const current = contour[index];
-    const next = contour[index + 1];
-    area += current.x * next.y - next.x * current.y;
-  }
-
-  return area / 2;
-};
-
-const holeCount = (contours: TextContour[]): number => contours.filter((contour) => signedArea(contour) < 0).length;
+const holeCount = (contours: TextContour[]): number => classifyContours(contours).reduce((sum, contour) => sum + contour.holes.length, 0);
 
 const expectClosedFiniteContour = (contour: TextContour): void => {
   expect(contour.length).toBeGreaterThanOrEqual(4);
@@ -39,6 +28,21 @@ describe("text contour generation", () => {
     for (const contour of contours) {
       expectClosedFiniteContour(contour);
     }
+  });
+
+  it.each([
+    ["ABC", 6, [1, 2, 0]],
+    ["O", 2, [1]],
+    ["B8", 6, [2, 2]],
+    ["$10", 6, [2, 0, 1]],
+    ["100", 5, [0, 1, 1]],
+    ["MOM", 4, [0, 1, 0]],
+  ] as const)("classifies DejaVu-derived counters for %s", (text, expectedContourCount, expectedHoleCounts) => {
+    const { contours } = textToContours(text);
+    const classified = classifyContours(contours);
+
+    expect(contours.length).toBe(expectedContourCount);
+    expect(classified.map((contour) => contour.holes.length)).toEqual(expectedHoleCounts);
   });
 
   it("models O with one internal hole", () => {
