@@ -51,15 +51,15 @@ const generateCoin = (parameters: CoinParameters): GeneratedCoin => createCoin(p
     <section class="workspace" aria-label="Token generator workspace">
       <aside class="panel controls-panel">
         <h2>Controls</h2>
-        <CoinControls v-model="coinParameters" />
+        <CoinControls :model-value="coinParameters" />
         <FaceControls
-          v-model="coinParameters.topFace"
+          :model-value="coinParameters.topFace"
           title="Top face"
           face-name="top"
           :fit-diagnostics="topTextFitDiagnostics"
         />
         <FaceControls
-          v-model="coinParameters.bottomFace"
+          :model-value="coinParameters.bottomFace"
           title="Bottom face"
           face-name="bottom"
           :fit-diagnostics="bottomTextFitDiagnostics"

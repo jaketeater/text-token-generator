@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "load:font": "node scripts/load-dejavu-font.mjs",
+    "predev": "npm run load:font",
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
