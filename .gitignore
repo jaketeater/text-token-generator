@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.DS_Store
+
+# Loaded locally by `npm run load:font`; binary font files are not committed.
+src/assets/DejaVuSans.ttf
