@@ -31,16 +31,13 @@ const createPart = (
   },
 });
 
-const scaleTextContour = (contour: readonly { x: number; y: number }[], textSize: number): TextContour =>
-  contour.map((point) => [point.x * textSize, point.y * textSize]);
-
 const createFittedTextContours = (
   faceParameters: FaceParameters,
   fitMode: CoinParameters["fitMode"],
   usableRadius: number,
 ): FittedTextContours => {
-  const scaledContours = textToContours(faceParameters.text).contours.map((contour) =>
-    scaleTextContour(contour, faceParameters.textSize),
+  const scaledContours = textToContours(faceParameters.text, { textSizeMm: faceParameters.textSize }).contours.map((contour) =>
+    contour.map((point) => [point.x, point.y] as const),
   );
   const contourLengths = scaledContours.map((contour) => contour.length);
   const flattenedPoints = scaledContours.flat() as TextPoint[];

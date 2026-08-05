@@ -1,5 +1,6 @@
-import { booleans, extrusions, geometries, transforms } from "@jscad/modeling";
+import { extrusions, geometries, transforms } from "@jscad/modeling";
 
+import { contoursToTextGeometry } from "../font/textGeometry";
 import type { BottomTextOrientation, FaceParameters } from "../model/coinParameters";
 import { COIN_PART_IDS, COIN_PART_NAMES, type GeneratedCoinPart } from "../model/generatedCoin";
 
@@ -42,28 +43,12 @@ export type FaceTextPart = GeneratedCoinPart & {
 type Geom2 = geometries.geom2.Geom2;
 type Geom3 = geometries.geom3.Geom3;
 
-const pointToTuple = (point: Point2): [number, number] => {
+const pointToFontPoint = (point: Point2): { x: number; y: number } => {
   if (Array.isArray(point)) {
-    return [point[0], point[1]];
+    return { x: point[0], y: point[1] };
   }
 
-  return [point.x, point.y];
-};
-
-const contoursToGeometry2 = (contours: readonly TextContour[]): Geom2 => {
-  const contourGeometries = contours
-    .filter((contour) => contour.length >= 3)
-    .map((contour) => geometries.geom2.fromPoints(contour.map(pointToTuple)));
-
-  if (contourGeometries.length === 0) {
-    return geometries.geom2.create();
-  }
-
-  if (contourGeometries.length === 1) {
-    return contourGeometries[0];
-  }
-
-  return booleans.union(...contourGeometries) as Geom2;
+  return { x: point.x, y: point.y };
 };
 
 const applyBottomReadabilityMirror = (text: Geom2): Geom2 => transforms.mirrorX(text) as Geom2;
@@ -99,7 +84,7 @@ export const createFaceText = ({
   thickness,
 }: CreateFaceTextInput): FaceTextPart => {
   const depth = faceParameters.depth;
-  const text2d = contoursToGeometry2(fittedText.contours);
+  const text2d = contoursToTextGeometry(fittedText.contours.map((contour) => contour.map(pointToFontPoint)));
   const geometry = face === "top"
     ? createTopTextGeometry(text2d, depth, thickness)
     : createBottomTextGeometry(text2d, depth, faceParameters.bottomTextOrientation);

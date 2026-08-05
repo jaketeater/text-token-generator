@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "load:font": "node scripts/load-dejavu-font.mjs",
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
