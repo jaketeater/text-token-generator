@@ -1,111 +1,27 @@
 import { describe, expect, it } from "vitest";
 import modeling from "@jscad/modeling";
 
+import { generateCoin } from "../export/export3mf";
+import { DEFAULT_COIN_PARAMETERS } from "../model/defaults";
+
 const { booleans, measurements, primitives } = modeling;
 
 const TOLERANCE_MM = 0.05;
 const VOLUME_TOLERANCE_MM3 = 2;
 const OVERLAP_TOLERANCE_MM3 = 0.001;
 
-const DEFAULT_COIN = {
-  diameter: 39,
-  thickness: 3.5,
-  borderWidth: 2,
-  textDepth: 0.2,
-  segments: 128,
-} as const;
-
-type Point3 = [number, number, number];
-type Mat4 = readonly [
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-  number, number, number, number,
-];
-
 const approximate = (actual: number, expected: number, tolerance = TOLERANCE_MM) => {
   expect(actual).toBeGreaterThanOrEqual(expected - tolerance);
   expect(actual).toBeLessThanOrEqual(expected + tolerance);
 };
 
-const makeCylinder = (radius: number, zMin: number, zMax: number) =>
+const createFullCoinCylinder = () =>
   primitives.cylinder({
-    radius,
-    height: zMax - zMin,
-    center: [0, 0, (zMin + zMax) / 2],
-    segments: DEFAULT_COIN.segments,
+    radius: DEFAULT_COIN_PARAMETERS.diameter / 2,
+    height: DEFAULT_COIN_PARAMETERS.thickness,
+    center: [0, 0, DEFAULT_COIN_PARAMETERS.thickness / 2],
+    segments: DEFAULT_COIN_PARAMETERS.circleSegments,
   });
-
-const makeTextBlock = ([x, y, z]: Point3) =>
-  primitives.cuboid({
-    center: [x, y, z + DEFAULT_COIN.textDepth / 2],
-    size: [0.8, 0.8, DEFAULT_COIN.textDepth],
-  });
-
-const applyMatrix = (matrix: Mat4, [x, y, z]: Point3): Point3 => [
-  matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12],
-  matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13],
-  matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14],
-];
-
-const topTextTransform: Mat4 = [
-  1, 0, 0, 0,
-  0, 1, 0, 0,
-  0, 0, 1, 0,
-  0, 0, DEFAULT_COIN.thickness - DEFAULT_COIN.textDepth, 1,
-];
-
-const bottomTextTransform: Mat4 = [
-  -1, 0, 0, 0,
-  0, 1, 0, 0,
-  0, 0, -1, 0,
-  0, 0, 0, 1,
-];
-
-const topFittedTextPoints: Point3[] = [
-  [-12, 0, 0],
-  [-6, 3, 0],
-  [0, -3, 0],
-  [6, 3, 0],
-  [12, 0, 0],
-];
-
-const bottomFittedTextPoints: Point3[] = [
-  [-14, -2, 0],
-  [-7, 2, 0],
-  [0, -2, 0],
-  [7, 2, 0],
-  [14, -2, 0],
-];
-
-const generateDefaultCoin = () => {
-  const outerRadius = DEFAULT_COIN.diameter / 2;
-  const usableRadius = outerRadius - DEFAULT_COIN.borderWidth;
-  const originalCylinder = makeCylinder(outerRadius, 0, DEFAULT_COIN.thickness);
-  const borderRing = booleans.subtract(
-    originalCylinder,
-    makeCylinder(usableRadius, 0, DEFAULT_COIN.thickness),
-  );
-  const topText = booleans.union(
-    ...topFittedTextPoints.map((point) => makeTextBlock(applyMatrix(topTextTransform, point))),
-  );
-  const bottomText = booleans.union(
-    ...bottomFittedTextPoints.map((point) => makeTextBlock(applyMatrix(bottomTextTransform, point))),
-  );
-  const body = booleans.subtract(
-    makeCylinder(usableRadius, 0, DEFAULT_COIN.thickness),
-    topText,
-    bottomText,
-  );
-
-  return {
-    originalCylinder,
-    usableRadius,
-    fittedTextPoints: [...topFittedTextPoints, ...bottomFittedTextPoints],
-    parts: { body, borderRing, topText, bottomText },
-    transforms: { topTextTransform, bottomTextTransform },
-  };
-};
 
 const radialBounds = (geometry: unknown) => {
   const polygons = modeling.geometries.geom3.toPolygons(geometry as never);
@@ -118,31 +34,37 @@ const radialBounds = (geometry: unknown) => {
 const volume = (geometry: unknown) => measurements.measureVolume(geometry as never);
 
 describe("default coin geometry", () => {
-  it("generates expected dimensions, placement, fit, separations, volume, and face orientations", () => {
-    const coin = generateDefaultCoin();
-    const parts = Object.values(coin.parts);
+  it("generates populated, fitted, non-overlapping production coin parts", () => {
+    const coin = generateCoin(DEFAULT_COIN_PARAMETERS);
+    const parts = Object.values(coin.parts).map((part) => part.geometry);
     const combined = booleans.union(...parts);
+    const expectedCylinder = createFullCoinCylinder();
+    const usableRadius = DEFAULT_COIN_PARAMETERS.diameter / 2 - DEFAULT_COIN_PARAMETERS.borderWidth;
+
+    expect(Object.keys(coin.parts)).toEqual(["body", "borderRing", "topText", "bottomText"]);
+    expect(volume(coin.parts.body.geometry)).toBeGreaterThan(0);
+    expect(volume(coin.parts.borderRing.geometry)).toBeGreaterThan(0);
+    expect(volume(coin.parts.topText.geometry)).toBeGreaterThan(0);
+    expect(volume(coin.parts.bottomText.geometry)).toBeGreaterThan(0);
 
     const [[minX, minY, minZ], [maxX, maxY, maxZ]] = measurements.measureBoundingBox(combined);
-    approximate(maxX - minX, 39);
-    approximate(maxY - minY, 39);
-    approximate(maxZ - minZ, 3.5);
+    approximate(maxX - minX, DEFAULT_COIN_PARAMETERS.diameter);
+    approximate(maxY - minY, DEFAULT_COIN_PARAMETERS.diameter);
+    approximate(maxZ - minZ, DEFAULT_COIN_PARAMETERS.thickness);
 
-    const borderRadii = radialBounds(coin.parts.borderRing);
-    approximate(borderRadii.max, 19.5);
-    approximate(borderRadii.min, 17.5);
+    const borderRadii = radialBounds(coin.parts.borderRing.geometry);
+    approximate(borderRadii.max, DEFAULT_COIN_PARAMETERS.diameter / 2);
+    approximate(borderRadii.min, usableRadius);
 
-    const topTextBounds = measurements.measureBoundingBox(coin.parts.topText);
-    approximate(topTextBounds[0][2], 3.3);
-    approximate(topTextBounds[1][2], 3.5);
+    const topTextBounds = measurements.measureBoundingBox(coin.parts.topText.geometry);
+    approximate(topTextBounds[0][2], DEFAULT_COIN_PARAMETERS.thickness - DEFAULT_COIN_PARAMETERS.topFace.depth);
+    approximate(topTextBounds[1][2], DEFAULT_COIN_PARAMETERS.thickness);
+    expect(radialBounds(coin.parts.topText.geometry).max).toBeLessThanOrEqual(usableRadius + TOLERANCE_MM);
 
-    const bottomTextBounds = measurements.measureBoundingBox(coin.parts.bottomText);
-    approximate(bottomTextBounds[0][2], 0.0);
-    approximate(bottomTextBounds[1][2], 0.2);
-
-    for (const [x, y] of coin.fittedTextPoints) {
-      expect(Math.hypot(x, y)).toBeLessThanOrEqual(coin.usableRadius);
-    }
+    const bottomTextBounds = measurements.measureBoundingBox(coin.parts.bottomText.geometry);
+    approximate(bottomTextBounds[0][2], 0);
+    approximate(bottomTextBounds[1][2], DEFAULT_COIN_PARAMETERS.bottomFace.depth);
+    expect(radialBounds(coin.parts.bottomText.geometry).max).toBeLessThanOrEqual(usableRadius + TOLERANCE_MM);
 
     for (let first = 0; first < parts.length; first += 1) {
       for (let second = first + 1; second < parts.length; second += 1) {
@@ -152,14 +74,8 @@ describe("default coin geometry", () => {
       }
     }
 
-    expect(volume(combined)).toBeCloseTo(volume(coin.originalCylinder), 0);
-    expect(Math.abs(volume(combined) - volume(coin.originalCylinder))).toBeLessThanOrEqual(
+    expect(Math.abs(volume(combined) - volume(expectedCylinder))).toBeLessThanOrEqual(
       VOLUME_TOLERANCE_MM3,
     );
-
-    expect(applyMatrix(coin.transforms.topTextTransform, [1, 0, 0])).toEqual([1, 0, 3.3]);
-    expect(applyMatrix(coin.transforms.topTextTransform, [0, 0, 1])).toEqual([0, 0, 4.3]);
-    expect(applyMatrix(coin.transforms.bottomTextTransform, [1, 0, 0])).toEqual([-1, 0, 0]);
-    expect(applyMatrix(coin.transforms.bottomTextTransform, [0, 0, 1])).toEqual([0, 0, -1]);
   });
 });
