@@ -2,14 +2,17 @@
 import { computed, reactive } from 'vue'
 import CoinControls from './components/CoinControls.vue'
 import FaceControls from './components/FaceControls.vue'
+import PreviewCanvas from './components/PreviewCanvas.vue'
 import PreviewToolbar from './components/PreviewToolbar.vue'
 import ValidationMessages from './components/ValidationMessages.vue'
 import { downloadCoin3mf } from './export/export3mf'
+import { createCoin } from './geometry/createCoin'
 import { fitTextToCircle } from './geometry/fitTextToCircle'
 import { textToContours } from './geometry/textContours'
 import { validateCoinParameters } from './geometry/validateGeometry'
 import { DEFAULT_COIN_PARAMETERS } from './model/defaults'
 import type { CoinParameters, FaceParameters } from './model/coinParameters'
+import type { GeneratedCoin } from './model/generatedCoin'
 import type { TextCircleFitDiagnostics, TextPoint } from './geometry/fitTextToCircle'
 
 const title = 'Text Token Generator'
@@ -32,14 +35,7 @@ const getTextFitDiagnostics = (face: FaceParameters): TextCircleFitDiagnostics =
 
 const topTextFitDiagnostics = computed(() => getTextFitDiagnostics(coinParameters.topFace))
 const bottomTextFitDiagnostics = computed(() => getTextFitDiagnostics(coinParameters.bottomFace))
-const fittedTopTextSize = computed(() => topTextFitDiagnostics.value.fittedSize)
-const fittedBottomTextSize = computed(() => bottomTextFitDiagnostics.value.fittedSize)
-
-const previewStyle = computed(() => ({
-  '--coin-body-color': coinParameters.bodyColor,
-  '--coin-border-color': coinParameters.borderColor,
-  '--coin-border-width': `${Math.max(4, coinParameters.borderWidth * 6)}px`,
-}))
+const generateCoin = (parameters: CoinParameters): GeneratedCoin => createCoin(parameters)
 </script>
 
 <template>
@@ -74,23 +70,7 @@ const previewStyle = computed(() => ({
         <PreviewToolbar :has-blocking-errors="hasBlockingErrors" @export="downloadCoin3mf(coinParameters)" />
         <ValidationMessages :messages="validationResult.messages" />
 
-        <div class="preview-canvas" aria-label="Preview placeholder">
-          <div class="coin-preview" :style="previewStyle">
-            <span
-              class="preview-text top-text"
-              :style="{ color: coinParameters.topFace.color, transform: `rotate(${coinParameters.topFace.rotationDegrees}deg)`, fontSize: `${Math.max(12, fittedTopTextSize * 4)}px` }"
-            >
-              {{ coinParameters.topFace.text || 'Top text' }}
-            </span>
-            <span
-              class="preview-text bottom-text"
-              :class="coinParameters.bottomFace.bottomTextOrientation"
-              :style="{ color: coinParameters.bottomFace.color, transform: `rotate(${coinParameters.bottomFace.rotationDegrees}deg)`, fontSize: `${Math.max(10, fittedBottomTextSize * 3)}px` }"
-            >
-              {{ coinParameters.bottomFace.text || 'Bottom text' }}
-            </span>
-          </div>
-        </div>
+        <PreviewCanvas :parameters="coinParameters" :generate-coin="generateCoin" />
       </section>
     </section>
   </main>
@@ -334,50 +314,6 @@ h1 {
 
 :deep(.validation-messages .warning) {
   border-color: #f59e0b;
-}
-
-.preview-canvas {
-  display: grid;
-  flex: 1;
-  min-height: 440px;
-  place-items: center;
-  border: 2px dashed #c7d2fe;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #ffffff, #eef2ff);
-}
-
-.coin-preview {
-  display: grid;
-  width: min(72vw, 430px);
-  aspect-ratio: 1;
-  place-items: center;
-  border: var(--coin-border-width) solid var(--coin-border-color);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, #ffffff80, transparent 28%), var(--coin-body-color);
-  box-shadow: inset 0 8px 24px #ffffff70, inset 0 -18px 40px #11182720, 0 24px 60px #0f172a24;
-}
-
-.preview-text {
-  max-width: 78%;
-  overflow: hidden;
-  font-weight: 900;
-  line-height: 1;
-  text-align: center;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.top-text {
-  align-self: end;
-}
-
-.bottom-text {
-  align-self: start;
-}
-
-.bottom-text.flipped {
-  scale: -1;
 }
 
 @media (max-width: 780px) {
