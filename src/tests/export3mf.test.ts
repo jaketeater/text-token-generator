@@ -46,6 +46,25 @@ const buildPhase1CompatibilityFixtureParts = (): ModelPart[] => [
   },
 ];
 
+const countNonManifoldEdges = (part: ModelPart): number => {
+  const edgeUseCounts = new Map<string, number>();
+
+  for (const [first, second, third] of part.mesh.triangles) {
+    const triangleEdges = [
+      [first, second],
+      [second, third],
+      [third, first],
+    ] as const;
+
+    for (const [start, end] of triangleEdges) {
+      const edgeKey = start < end ? `${start},${end}` : `${end},${start}`;
+      edgeUseCounts.set(edgeKey, (edgeUseCounts.get(edgeKey) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(edgeUseCounts.values()).filter((useCount) => useCount !== 2).length;
+};
+
 const elementChildren = (element: Element, tagName: string): Element[] =>
   Array.from(element.children).filter((child) => child.localName === tagName);
 
@@ -199,5 +218,16 @@ describe("3MF export", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("exports each production coin part as a closed manifold triangle mesh", () => {
+    const parts = buildDefaultProductionCoinParts();
+
+    expect(Object.fromEntries(parts.map((part) => [part.name, countNonManifoldEdges(part)]))).toEqual({
+      [COIN_PART_NAMES.body]: 0,
+      [COIN_PART_NAMES.borderRing]: 0,
+      [COIN_PART_NAMES.topText]: 0,
+      [COIN_PART_NAMES.bottomText]: 0,
+    });
   });
 });

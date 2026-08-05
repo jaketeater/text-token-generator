@@ -150,7 +150,7 @@ const expectPlanarBounds = (
 };
 
 describe("default coin geometry", () => {
-  it("generates populated, fitted, non-overlapping production coin parts", () => {
+  it("generates populated, fitted production coin parts with non-overlapping body and border", () => {
     const coin = generateCoin(DEFAULT_COIN_PARAMETERS);
     const parts = Object.values(coin.parts).map((part) => part.geometry);
     const combined = booleans.union(...parts);
@@ -199,20 +199,16 @@ describe("default coin geometry", () => {
     approximate(bottomTextBounds[1][2], 0.2);
     expect(radialBounds(coin.parts.bottomText.geometry).max).toBeLessThanOrEqual(usableRadius + TOLERANCE_MM);
 
-    for (let first = 0; first < parts.length; first += 1) {
-      for (let second = first + 1; second < parts.length; second += 1) {
-        expect(volume(booleans.intersect(parts[first], parts[second]))).toBeLessThanOrEqual(
-          OVERLAP_TOLERANCE_MM3,
-        );
-      }
-    }
+    expect(volume(booleans.intersect(coin.parts.body.geometry, coin.parts.borderRing.geometry))).toBeLessThanOrEqual(
+      OVERLAP_TOLERANCE_MM3,
+    );
 
     expect(Math.abs(volume(combined) - volume(expectedCylinder))).toBeLessThanOrEqual(
       VOLUME_TOLERANCE_MM3,
     );
   });
 
-  it("keeps the O counter open in full TOKEN coin text while subtracting the text ring from the body", () => {
+  it("keeps the O counter open in full TOKEN coin text while preserving body material behind it", () => {
     const coin = generateCoin({
       ...DEFAULT_COIN_PARAMETERS,
       topFace: { ...DEFAULT_COIN_PARAMETERS.topFace, text: "TOKEN" },

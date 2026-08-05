@@ -1,4 +1,4 @@
-import { booleans, primitives } from "@jscad/modeling";
+import { booleans, extrusions, primitives } from "@jscad/modeling";
 import type { geometries } from "@jscad/modeling";
 
 import type { CoinParameters } from "../model/coinParameters";
@@ -20,8 +20,10 @@ export const createCenteredCoinCylinder = (
 export const createBorderRing = (parameters: CoinParameters): geometries.geom3.Geom3 => {
   const outerRadius = parameters.diameter / 2;
   const innerRadius = outerRadius - parameters.borderWidth;
-  const outerCylinder = createCenteredCoinCylinder(outerRadius, parameters.thickness, parameters.circleSegments);
-  const innerCylinder = createCenteredCoinCylinder(innerRadius, parameters.thickness, parameters.circleSegments);
+  const ringProfile = booleans.subtract(
+    primitives.circle({ radius: outerRadius, segments: parameters.circleSegments }),
+    primitives.circle({ radius: innerRadius, segments: parameters.circleSegments }),
+  ) as geometries.geom2.Geom2;
 
-  return booleans.subtract(outerCylinder, innerCylinder);
+  return extrusions.extrudeLinear({ height: parameters.thickness }, ringProfile) as geometries.geom3.Geom3;
 };
