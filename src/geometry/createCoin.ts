@@ -13,6 +13,7 @@ import { createBorderRing, createCenteredCoinCylinder } from "./createBorderRing
 import { createFaceText, type FittedTextContours, type TextContour } from "./createFaceText";
 import { fitTextToCircle, type CircleTextFitMode } from "./fitTextToCircle";
 import { textToContours } from "./textContours";
+import { validateCoinParameters, withGeometryValidationInputs } from "./validateGeometry";
 
 const createPart = (
   key: CoinPartKey,
@@ -57,6 +58,8 @@ const createFittedTextContours = (
 };
 
 export const createCoin = (parameters: CoinParameters): GeneratedCoin => {
+  const validationParameters = withGeometryValidationInputs(parameters);
+  const validation = validateCoinParameters(validationParameters);
   const outerRadius = parameters.diameter / 2;
   const innerRadius = outerRadius - parameters.borderWidth;
   const usableRadius = innerRadius;
@@ -82,5 +85,5 @@ export const createCoin = (parameters: CoinParameters): GeneratedCoin => {
     bottomText,
   } satisfies GeneratedCoinParts;
 
-  return { parts };
+  return { parts, validation };
 };

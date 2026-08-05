@@ -1,5 +1,7 @@
 import type { geometries } from "@jscad/modeling";
 
+import type { ValidationResult } from "../geometry/validateGeometry";
+
 export const COIN_PART_IDS = {
   body: "coin-body",
   borderRing: "border-ring",
@@ -53,4 +55,6 @@ export type GeneratedCoinParts = {
 
 export interface GeneratedCoin {
   parts: GeneratedCoinParts;
+  /** Export-blocking validation result produced from the generated text contours. */
+  validation: ValidationResult;
 }
