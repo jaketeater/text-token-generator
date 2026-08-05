@@ -15,7 +15,7 @@ const escapeXml = (value: string): string =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&apos;')
 
-const formatNumber = (value: number): string => Number(value.toFixed(6)).toString()
+const formatNumber = (value: number): string => Number(value.toFixed(9)).toString()
 
 const meshXml = (mesh: TriangleMesh, materialIndex: number): string => `
       <mesh>

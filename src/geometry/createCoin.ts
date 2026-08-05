@@ -1,4 +1,4 @@
-import { booleans, geometries } from "@jscad/modeling";
+import { geometries } from "@jscad/modeling";
 
 import type { CoinParameters, FaceParameters } from "../model/coinParameters";
 import {
@@ -57,13 +57,16 @@ const createFittedTextContours = (
   };
 };
 
+const BODY_RING_CLEARANCE_MM = 0.003;
+
 export const createCoin = (parameters: CoinParameters): GeneratedCoin => {
   const validationParameters = withGeometryValidationInputs(parameters);
   const validation = validateCoinParameters(validationParameters);
   const outerRadius = parameters.diameter / 2;
   const innerRadius = outerRadius - parameters.borderWidth;
   const usableRadius = innerRadius;
-  const centerCylinder = createCenteredCoinCylinder(innerRadius, parameters.thickness, parameters.circleSegments);
+  const bodyRadius = Math.max(0, innerRadius - BODY_RING_CLEARANCE_MM);
+  const centerCylinder = createCenteredCoinCylinder(bodyRadius, parameters.thickness, parameters.circleSegments);
   const topText = createFaceText({
     face: "top",
     faceParameters: parameters.topFace,
@@ -76,7 +79,7 @@ export const createCoin = (parameters: CoinParameters): GeneratedCoin => {
     fittedText: createFittedTextContours(parameters.bottomFace, parameters.fitMode, usableRadius),
     thickness: parameters.thickness,
   });
-  const body = booleans.subtract(centerCylinder, topText.geometry, bottomText.geometry) as geometries.geom3.Geom3;
+  const body = centerCylinder;
 
   const parts = {
     body: createPart("body", body, parameters.bodyColor),
