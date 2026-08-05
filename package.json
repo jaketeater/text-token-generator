@@ -12,18 +12,18 @@
   },
   "dependencies": {
     "@jscad/modeling": "^2.12.6",
-    "@jscad/regl-renderer": "^2.7.0",
+    "@jscad/regl-renderer": "^2.6.15",
     "fflate": "^0.8.2",
     "opentype.js": "^1.3.4",
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "@vitejs/plugin-vue": "^5.2.1",
     "happy-dom": "^15.11.7",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.8",
-    "vue-tsc": "^2.2.0",
-    "@types/node": "^22.10.2"
+    "vue-tsc": "^2.2.0"
   }
 }
