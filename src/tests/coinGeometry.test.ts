@@ -5,6 +5,9 @@ import { generateCoin } from "../export/export3mf";
 import { DEFAULT_COIN_PARAMETERS } from "../model/defaults";
 import { COIN_PART_NAMES } from "../model/generatedCoin";
 import { createFaceText, type FittedTextContours, type TextContour } from "../geometry/createFaceText";
+import { classifyContours } from "../font/classifyContours";
+import { fitTextToCircle } from "../geometry/fitTextToCircle";
+import { textToContours } from "../geometry/textContours";
 import type { BottomTextOrientation, FaceParameters } from "../model/coinParameters";
 
 const { booleans, measurements, primitives } = modeling;
@@ -68,6 +71,45 @@ const FACE_PARAMETERS: FaceParameters = {
 const planarBounds = (geometry: unknown) => {
   const [[minX, minY], [maxX, maxY]] = measurements.measureBoundingBox(geometry as never);
   return { minX, minY, maxX, maxY };
+};
+
+
+const contourCentroid = (contour: readonly { x: number; y: number }[]): [number, number] => {
+  const open = contour.length > 1 && contour[0].x === contour.at(-1)?.x && contour[0].y === contour.at(-1)?.y
+    ? contour.slice(0, -1)
+    : contour;
+  let areaTwice = 0;
+  let x = 0;
+  let y = 0;
+
+  for (let index = 0, previousIndex = open.length - 1; index < open.length; previousIndex = index, index += 1) {
+    const current = open[index];
+    const previous = open[previousIndex];
+    const cross = previous.x * current.y - current.x * previous.y;
+    areaTwice += cross;
+    x += (previous.x + current.x) * cross;
+    y += (previous.y + current.y) * cross;
+  }
+
+  return [x / (3 * areaTwice), y / (3 * areaTwice)];
+};
+
+const fittedTokenOHoleCenter = (): [number, number] => {
+  const sourceContours = textToContours("TOKEN", { textSizeMm: DEFAULT_COIN_PARAMETERS.topFace.textSize }).contours;
+  const oHole = classifyContours(sourceContours).find(({ holes }) => holes.length === 1)?.holes[0];
+  expect(oHole).toBeDefined();
+  const oHoleIndex = sourceContours.findIndex((contour) => contour === oHole);
+  expect(oHoleIndex).toBeGreaterThanOrEqual(0);
+  const fitted = fitTextToCircle(
+    sourceContours.map((contour) => contour.map((point) => [point.x, point.y] as const)),
+    DEFAULT_COIN_PARAMETERS.topFace.textSize,
+    DEFAULT_COIN_PARAMETERS.diameter / 2 - DEFAULT_COIN_PARAMETERS.borderWidth,
+    DEFAULT_COIN_PARAMETERS.topFace.rotationDegrees,
+    "shrink-only",
+  );
+  const fittedHole = fitted.contours[oHoleIndex].map(([x, y]) => ({ x, y }));
+
+  return contourCentroid(fittedHole);
 };
 
 const expectPlanarBounds = (
@@ -142,6 +184,23 @@ describe("default coin geometry", () => {
     expect(Math.abs(volume(combined) - volume(expectedCylinder))).toBeLessThanOrEqual(
       VOLUME_TOLERANCE_MM3,
     );
+  });
+
+  it("keeps the O counter open in full TOKEN coin text while subtracting the text ring from the body", () => {
+    const coin = generateCoin({
+      ...DEFAULT_COIN_PARAMETERS,
+      topFace: { ...DEFAULT_COIN_PARAMETERS.topFace, text: "TOKEN" },
+    });
+    const [x, y] = fittedTokenOHoleCenter();
+    const probe = primitives.cylinder({
+      center: [x, y, DEFAULT_COIN_PARAMETERS.thickness - DEFAULT_COIN_PARAMETERS.topFace.depth / 2],
+      height: DEFAULT_COIN_PARAMETERS.topFace.depth,
+      radius: 0.05,
+      segments: 16,
+    });
+
+    expect(volume(booleans.intersect(coin.parts.topText.geometry, probe))).toBeLessThan(1e-8);
+    expect(volume(booleans.intersect(coin.parts.body.geometry, probe))).toBeGreaterThan(0);
   });
 });
 
