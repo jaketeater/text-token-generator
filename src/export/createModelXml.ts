@@ -17,7 +17,7 @@ const escapeXml = (value: string): string =>
 
 const formatNumber = (value: number): string => Number(value.toFixed(6)).toString()
 
-const meshXml = (mesh: TriangleMesh): string => `
+const meshXml = (mesh: TriangleMesh, materialIndex: number): string => `
       <mesh>
         <vertices>
 ${mesh.vertices
@@ -29,27 +29,39 @@ ${mesh.vertices
         </vertices>
         <triangles>
 ${mesh.triangles
-  .map(([v1, v2, v3]) => `          <triangle v1="${v1}" v2="${v2}" v3="${v3}" />`)
+  .map(
+    ([v1, v2, v3]) =>
+      `          <triangle v1="${v1}" v2="${v2}" v3="${v3}" pid="1" p1="${materialIndex}" p2="${materialIndex}" p3="${materialIndex}" />`,
+  )
   .join('\n')}
         </triangles>
       </mesh>`
 
 export const createModelXml = (parts: ModelPart[]): string => {
   const componentObjectId = Math.max(...parts.map((part) => part.id)) + 1
+  const baseMaterialsXml = parts
+    .map(
+      (part) =>
+        `      <base name="${escapeXml(part.name)}" displaycolor="${escapeXml(part.color)}" />`,
+    )
+    .join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
   <metadata name="Application">Text Token Generator</metadata>
   <resources>
+    <basematerials id="1">
+${baseMaterialsXml}
+    </basematerials>
 ${parts
   .map(
-    (part) => `    <object id="${part.id}" type="model" name="${escapeXml(part.name)}" partnumber="${escapeXml(part.name)}">
+    (part, materialIndex) => `    <object id="${part.id}" type="model" name="${escapeXml(part.name)}" partnumber="${escapeXml(part.name)}" pid="1" pindex="${materialIndex}">
       <metadata name="name">${escapeXml(part.name)}</metadata>
-      <metadata name="color">${escapeXml(part.color)}</metadata>${meshXml(part.mesh)}
+      <metadata name="color">${escapeXml(part.color)}</metadata>${meshXml(part.mesh, materialIndex)}
     </object>`,
   )
   .join('\n')}
-    <object id="${componentObjectId}" type="model" name="Coin Compatibility Test">
+    <object id="${componentObjectId}" type="model" name="Text Token">
       <components>
 ${parts.map((part) => `        <component objectid="${part.id}" />`).join('\n')}
       </components>

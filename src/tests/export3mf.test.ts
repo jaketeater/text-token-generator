@@ -132,6 +132,20 @@ describe("3MF export", () => {
       (object) => elementChildren(object, "components").length === 1,
     );
 
+    const baseMaterials = elementChildren(resources, "basematerials");
+
+    expect(baseMaterials).toHaveLength(1);
+    expect(baseMaterials[0].getAttribute("id")).toBe("1");
+
+    const baseMaterialEntries = elementChildren(baseMaterials[0], "base");
+
+    expect(baseMaterialEntries).toHaveLength(4);
+    expect(baseMaterialEntries.map((base) => base.getAttribute("name"))).toEqual(
+      PARTS.map((part) => part.name),
+    );
+    expect(baseMaterialEntries.map((base) => base.getAttribute("displaycolor"))).toEqual(
+      PARTS.map((part) => part.color),
+    );
     expect(meshObjects).toHaveLength(4);
     expect(parentObjects).toHaveLength(1);
 
@@ -140,6 +154,7 @@ describe("3MF export", () => {
     const parentComponents = parentObject.getElementsByTagName("component");
 
     expect(parentObjectId).toBe("5");
+    expect(parentObject.getAttribute("name")).toBe("Text Token");
     expect(elementChildren(parentObject, "mesh")).toHaveLength(0);
     expect(parentComponents).toHaveLength(4);
     expect(Array.from(parentComponents).map((component) => component.getAttribute("objectid"))).toEqual([
@@ -164,12 +179,25 @@ describe("3MF export", () => {
       expect(meshObject).toBeDefined();
       expect(meshObject?.getAttribute("name")).toBe(part.name);
       expect(meshObject?.getAttribute("partnumber")).toBe(part.name);
+      expect(meshObject?.getAttribute("pid")).toBe("1");
+      expect(meshObject?.getAttribute("pindex")).toBe((part.objectId - 1).toString());
 
       const metadata = Array.from(meshObject?.getElementsByTagName("metadata") ?? []);
       expect(metadata.find((entry) => entry.getAttribute("name") === "name")?.textContent).toBe(part.name);
       expect(metadata.find((entry) => entry.getAttribute("name") === "color")?.textContent).toBe(part.color);
       expect(meshObject?.getElementsByTagName("vertex").length).toBeGreaterThan(0);
-      expect(meshObject?.getElementsByTagName("triangle").length).toBeGreaterThan(0);
+      const triangles = Array.from(meshObject?.getElementsByTagName("triangle") ?? []);
+
+      expect(triangles.length).toBeGreaterThan(0);
+      expect(triangles.every((triangle) => triangle.getAttribute("pid") === "1")).toBe(true);
+      expect(
+        triangles.every(
+          (triangle) =>
+            triangle.getAttribute("p1") === (part.objectId - 1).toString() &&
+            triangle.getAttribute("p2") === (part.objectId - 1).toString() &&
+            triangle.getAttribute("p3") === (part.objectId - 1).toString(),
+        ),
+      ).toBe(true);
     }
   });
 });
