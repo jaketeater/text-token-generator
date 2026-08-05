@@ -15,7 +15,7 @@ defineEmits<{
       <p>Live layout summary before generating the 3MF file.</p>
     </div>
     <button type="button" class="export-button" :disabled="hasBlockingErrors" @click="$emit('export')">
-      Download 3MF compatibility test
+      Download multipart 3MF
     </button>
   </div>
 </template>

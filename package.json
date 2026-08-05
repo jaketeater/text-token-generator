@@ -9,7 +9,9 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "prebuild": "npm run load:font",
+    "pretest": "npm run load:font"
   },
   "dependencies": {
     "@jscad/modeling": "^2.12.6",
