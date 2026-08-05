@@ -1,8 +1,8 @@
-import { booleans, primitives, transforms } from "@jscad/modeling";
+import { primitives } from "@jscad/modeling";
 import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync } from "fflate";
 
-import { createCoin3mf, createCoin3mfFilename } from "../export/export3mf";
+import { createCoin3mf, createCoin3mfFilename, createCoinModelParts, generateCoin } from "../export/export3mf";
 import { create3mfPackage } from "../export/create3mfPackage";
 import { createModelXml, type ModelPart } from "../export/createModelXml";
 import { meshToTriangles } from "../export/meshToTriangles";
@@ -16,45 +16,35 @@ const PARTS = [
   { objectId: 4, name: COIN_PART_NAMES.bottomText, color: DEFAULT_COIN_PARAMETERS.bottomFace.color },
 ] as const;
 
-const buildDefaultRealCoinParts = (): ModelPart[] => {
-  const { diameter, thickness, borderWidth, circleSegments, topFace, bottomFace } =
-    DEFAULT_COIN_PARAMETERS;
-  const radius = diameter / 2;
-  const topSurfaceZ = thickness / 2;
-  const textDepth = Math.max(topFace.depth, bottomFace.depth);
+const buildDefaultProductionCoinParts = (): ModelPart[] =>
+  createCoinModelParts(generateCoin(DEFAULT_COIN_PARAMETERS));
 
-  const body = primitives.cylinder({ radius, height: thickness, segments: circleSegments });
-  const borderRing = booleans.subtract(
-    primitives.cylinder({ radius, height: thickness + textDepth, segments: circleSegments }),
-    primitives.cylinder({
-      radius: radius - borderWidth,
-      height: thickness + textDepth * 2,
-      segments: circleSegments,
-    }),
-  );
-  const topText = transforms.translate(
-    [0, radius * 0.23, topSurfaceZ + topFace.depth / 2],
-    primitives.cuboid({ size: [topFace.text.length * topFace.textSize * 0.55, topFace.textSize, topFace.depth] }),
-  );
-  const bottomText = transforms.translate(
-    [0, -radius * 0.27, topSurfaceZ + bottomFace.depth / 2],
-    primitives.cuboid({
-      size: [bottomFace.text.length * bottomFace.textSize * 0.55, bottomFace.textSize, bottomFace.depth],
-    }),
-  );
-
-  return [
-    { id: 1, name: COIN_PART_NAMES.body, color: DEFAULT_COIN_PARAMETERS.bodyColor, mesh: meshToTriangles(body) },
-    {
-      id: 2,
-      name: COIN_PART_NAMES.borderRing,
-      color: DEFAULT_COIN_PARAMETERS.borderColor,
-      mesh: meshToTriangles(borderRing),
-    },
-    { id: 3, name: COIN_PART_NAMES.topText, color: topFace.color, mesh: meshToTriangles(topText) },
-    { id: 4, name: COIN_PART_NAMES.bottomText, color: bottomFace.color, mesh: meshToTriangles(bottomText) },
-  ];
-};
+const buildPhase1CompatibilityFixtureParts = (): ModelPart[] => [
+  {
+    id: 1,
+    name: COIN_PART_NAMES.body,
+    color: DEFAULT_COIN_PARAMETERS.bodyColor,
+    mesh: meshToTriangles(primitives.cuboid({ size: [1, 1, 1] })),
+  },
+  {
+    id: 2,
+    name: COIN_PART_NAMES.borderRing,
+    color: DEFAULT_COIN_PARAMETERS.borderColor,
+    mesh: meshToTriangles(primitives.cuboid({ size: [1, 1, 1] })),
+  },
+  {
+    id: 3,
+    name: COIN_PART_NAMES.topText,
+    color: DEFAULT_COIN_PARAMETERS.topFace.color,
+    mesh: meshToTriangles(primitives.cuboid({ size: [1, 1, 1] })),
+  },
+  {
+    id: 4,
+    name: COIN_PART_NAMES.bottomText,
+    color: DEFAULT_COIN_PARAMETERS.bottomFace.color,
+    mesh: meshToTriangles(primitives.cuboid({ size: [1, 1, 1] })),
+  },
+];
 
 const elementChildren = (element: Element, tagName: string): Element[] =>
   Array.from(element.children).filter((child) => child.localName === tagName);
@@ -69,7 +59,6 @@ const parseModelXml = (modelXml: string): XMLDocument => {
 };
 
 describe("3MF export", () => {
-
   it("exports generated coin parameters through the production 3MF API", () => {
     const archive = createCoin3mf(DEFAULT_COIN_PARAMETERS);
     const files = unzipSync(archive);
@@ -100,6 +89,16 @@ describe("3MF export", () => {
     ]);
   });
 
+  it("keeps the Phase 1 compatibility fixture exportable", () => {
+    const archive = create3mfPackage(createModelXml(buildPhase1CompatibilityFixtureParts()));
+    const files = unzipSync(archive);
+    const modelXml = strFromU8(files["3D/3dmodel.model"]);
+    const modelDocument = parseModelXml(modelXml);
+
+    expect(modelDocument.getElementsByTagName("object")).toHaveLength(5);
+    expect(modelDocument.getElementsByTagName("triangle").length).toBeGreaterThan(0);
+  });
+
   it("creates a sanitized coin 3MF filename from face text", () => {
     expect(
       createCoin3mfFilename({
@@ -109,8 +108,9 @@ describe("3MF export", () => {
       }),
     ).toBe("coin-Top-Token-Bottom-Face.3mf");
   });
-  it("exports a default real coin as mesh components under a single parent build item", () => {
-    const parts = buildDefaultRealCoinParts();
+
+  it("exports production generated coin parts as mesh components under a single parent build item", () => {
+    const parts = buildDefaultProductionCoinParts();
     const archive = create3mfPackage(createModelXml(parts));
     const files = unzipSync(archive);
 
