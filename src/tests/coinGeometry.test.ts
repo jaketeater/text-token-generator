@@ -3,6 +3,7 @@ import modeling from "@jscad/modeling";
 
 import { generateCoin } from "../export/export3mf";
 import { DEFAULT_COIN_PARAMETERS } from "../model/defaults";
+import { COIN_PART_NAMES } from "../model/generatedCoin";
 import { createFaceText, type FittedTextContours, type TextContour } from "../geometry/createFaceText";
 import type { BottomTextOrientation, FaceParameters } from "../model/coinParameters";
 
@@ -34,6 +35,8 @@ const radialBounds = (geometry: unknown) => {
 };
 
 const volume = (geometry: unknown) => measurements.measureVolume(geometry as never);
+
+const polygonCount = (geometry: unknown) => modeling.geometries.geom3.toPolygons(geometry as never).length;
 
 const ASYMMETRIC_TEXT_CONTOURS: readonly TextContour[] = [
   [[1, 2], [3, 2], [1, 4]],
@@ -87,28 +90,45 @@ describe("default coin geometry", () => {
     const usableRadius = DEFAULT_COIN_PARAMETERS.diameter / 2 - DEFAULT_COIN_PARAMETERS.borderWidth;
 
     expect(Object.keys(coin.parts)).toEqual(["body", "borderRing", "topText", "bottomText"]);
-    expect(volume(coin.parts.body.geometry)).toBeGreaterThan(0);
-    expect(volume(coin.parts.borderRing.geometry)).toBeGreaterThan(0);
-    expect(volume(coin.parts.topText.geometry)).toBeGreaterThan(0);
-    expect(volume(coin.parts.bottomText.geometry)).toBeGreaterThan(0);
+    expect(coin.parts.body).toMatchObject({
+      name: COIN_PART_NAMES.body,
+      color: DEFAULT_COIN_PARAMETERS.bodyColor,
+    });
+    expect(coin.parts.borderRing).toMatchObject({
+      name: COIN_PART_NAMES.borderRing,
+      color: DEFAULT_COIN_PARAMETERS.borderColor,
+    });
+    expect(coin.parts.topText).toMatchObject({
+      name: COIN_PART_NAMES.topText,
+      color: DEFAULT_COIN_PARAMETERS.topFace.color,
+    });
+    expect(coin.parts.bottomText).toMatchObject({
+      name: COIN_PART_NAMES.bottomText,
+      color: DEFAULT_COIN_PARAMETERS.bottomFace.color,
+    });
+
+    for (const part of Object.values(coin.parts)) {
+      expect(polygonCount(part.geometry)).toBeGreaterThan(0);
+      expect(volume(part.geometry)).toBeGreaterThan(0);
+    }
 
     const [[minX, minY, minZ], [maxX, maxY, maxZ]] = measurements.measureBoundingBox(combined);
-    approximate(maxX - minX, DEFAULT_COIN_PARAMETERS.diameter);
-    approximate(maxY - minY, DEFAULT_COIN_PARAMETERS.diameter);
-    approximate(maxZ - minZ, DEFAULT_COIN_PARAMETERS.thickness);
+    approximate(maxX - minX, 39);
+    approximate(maxY - minY, 39);
+    approximate(maxZ - minZ, 3.5);
 
     const borderRadii = radialBounds(coin.parts.borderRing.geometry);
-    approximate(borderRadii.max, DEFAULT_COIN_PARAMETERS.diameter / 2);
-    approximate(borderRadii.min, usableRadius);
+    approximate(borderRadii.max, 19.5);
+    approximate(borderRadii.min, 17.5);
 
     const topTextBounds = measurements.measureBoundingBox(coin.parts.topText.geometry);
-    approximate(topTextBounds[0][2], DEFAULT_COIN_PARAMETERS.thickness - DEFAULT_COIN_PARAMETERS.topFace.depth);
-    approximate(topTextBounds[1][2], DEFAULT_COIN_PARAMETERS.thickness);
+    approximate(topTextBounds[0][2], 3.3);
+    approximate(topTextBounds[1][2], 3.5);
     expect(radialBounds(coin.parts.topText.geometry).max).toBeLessThanOrEqual(usableRadius + TOLERANCE_MM);
 
     const bottomTextBounds = measurements.measureBoundingBox(coin.parts.bottomText.geometry);
     approximate(bottomTextBounds[0][2], 0);
-    approximate(bottomTextBounds[1][2], DEFAULT_COIN_PARAMETERS.bottomFace.depth);
+    approximate(bottomTextBounds[1][2], 0.2);
     expect(radialBounds(coin.parts.bottomText.geometry).max).toBeLessThanOrEqual(usableRadius + TOLERANCE_MM);
 
     for (let first = 0; first < parts.length; first += 1) {
