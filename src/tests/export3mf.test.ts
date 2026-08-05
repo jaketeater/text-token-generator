@@ -2,6 +2,7 @@ import { booleans, primitives, transforms } from "@jscad/modeling";
 import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync } from "fflate";
 
+import { createCoin3mf, createCoin3mfFilename } from "../export/export3mf";
 import { create3mfPackage } from "../export/create3mfPackage";
 import { createModelXml, type ModelPart } from "../export/createModelXml";
 import { meshToTriangles } from "../export/meshToTriangles";
@@ -68,6 +69,46 @@ const parseModelXml = (modelXml: string): XMLDocument => {
 };
 
 describe("3MF export", () => {
+
+  it("exports generated coin parameters through the production 3MF API", () => {
+    const archive = createCoin3mf(DEFAULT_COIN_PARAMETERS);
+    const files = unzipSync(archive);
+    const modelXml = strFromU8(files["3D/3dmodel.model"]);
+    const modelDocument = parseModelXml(modelXml);
+
+    const meshObjects = Array.from(modelDocument.getElementsByTagName("object")).filter(
+      (object) => elementChildren(object, "mesh").length === 1,
+    );
+
+    expect(meshObjects.map((object) => object.getAttribute("name"))).toEqual([
+      COIN_PART_NAMES.body,
+      COIN_PART_NAMES.borderRing,
+      COIN_PART_NAMES.topText,
+      COIN_PART_NAMES.bottomText,
+    ]);
+    expect(
+      meshObjects.map((object) =>
+        Array.from(object.getElementsByTagName("metadata")).find(
+          (entry) => entry.getAttribute("name") === "color",
+        )?.textContent,
+      ),
+    ).toEqual([
+      DEFAULT_COIN_PARAMETERS.bodyColor,
+      DEFAULT_COIN_PARAMETERS.borderColor,
+      DEFAULT_COIN_PARAMETERS.topFace.color,
+      DEFAULT_COIN_PARAMETERS.bottomFace.color,
+    ]);
+  });
+
+  it("creates a sanitized coin 3MF filename from face text", () => {
+    expect(
+      createCoin3mfFilename({
+        ...DEFAULT_COIN_PARAMETERS,
+        topFace: { ...DEFAULT_COIN_PARAMETERS.topFace, text: "  Top Token! " },
+        bottomFace: { ...DEFAULT_COIN_PARAMETERS.bottomFace, text: "Bottom / Face" },
+      }),
+    ).toBe("coin-Top-Token-Bottom-Face.3mf");
+  });
   it("exports a default real coin as mesh components under a single parent build item", () => {
     const parts = buildDefaultRealCoinParts();
     const archive = create3mfPackage(createModelXml(parts));
