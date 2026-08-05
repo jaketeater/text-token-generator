@@ -1,9 +1,27 @@
+import { measurements } from "@jscad/modeling";
 import { describe, expect, it } from "vitest";
 
 import { classifyContours } from "../font/classifyContours";
+import { contoursToTextGeometry } from "../font/textGeometry";
 import { textToContours, type TextContour } from "../geometry/textContours";
 
 const PLANNING_DOCUMENT_STRINGS = ["ABC", "O", "B8", "$10", "100", "MOM"] as const;
+
+
+const signedArea = (contour: TextContour): number => {
+  let areaTwice = 0;
+  const open = contour.length > 1 && contour[0].x === contour.at(-1)?.x && contour[0].y === contour.at(-1)?.y
+    ? contour.slice(0, -1)
+    : contour;
+
+  for (let index = 0, previousIndex = open.length - 1; index < open.length; previousIndex = index, index += 1) {
+    const current = open[index];
+    const previous = open[previousIndex];
+    areaTwice += previous.x * current.y - current.x * previous.y;
+  }
+
+  return areaTwice / 2;
+};
 
 const holeCount = (contours: TextContour[]): number => classifyContours(contours).reduce((sum, contour) => sum + contour.holes.length, 0);
 
@@ -55,6 +73,15 @@ describe("text contour generation", () => {
     const { contours } = textToContours("8");
 
     expect(holeCount(contours)).toBe(2);
+  });
+
+
+  it.each(["O", "0", "8", "B", "P"] as const)("subtracts counters from final text geometry for %s", (text) => {
+    const { contours } = textToContours(text);
+    const textGeometry = contoursToTextGeometry(contours);
+    const filledArea = measurements.measureArea(textGeometry as never);
+    const rawContourArea = contours.reduce((sum, contour) => sum + Math.abs(signedArea(contour)), 0);
+    expect(filledArea).toBeLessThan(rawContourArea);
   });
 
   it("does not emit invalid empty contours for spaces", () => {
