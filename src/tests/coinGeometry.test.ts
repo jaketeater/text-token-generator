@@ -208,6 +208,24 @@ describe("default coin geometry", () => {
     );
   });
 
+  it("wraps face text on whitespace before fitting it inside the usable circle", () => {
+    const coin = generateCoin({
+      ...DEFAULT_COIN_PARAMETERS,
+      fitMode: "fixed",
+      topFace: {
+        ...DEFAULT_COIN_PARAMETERS.topFace,
+        text: "ONE TWO THREE FOUR",
+        textSize: 5,
+        autoFit: false,
+      },
+    });
+
+    expect(coin.parts.topText.metadata.scale).toBe(1);
+    expect(radialBounds(coin.parts.topText.geometry).max).toBeLessThanOrEqual(
+      DEFAULT_COIN_PARAMETERS.diameter / 2 - DEFAULT_COIN_PARAMETERS.borderWidth + TOLERANCE_MM,
+    );
+  });
+
   it("keeps the O counter open in full TOKEN coin text while preserving body material behind it", () => {
     const coin = generateCoin({
       ...DEFAULT_COIN_PARAMETERS,

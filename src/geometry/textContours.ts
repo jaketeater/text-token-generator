@@ -26,9 +26,11 @@ export interface TextToContoursOptions {
   textSizeMm?: number;
   curveTolerance?: number;
   font?: opentype.Font;
+  lineHeightMm?: number;
 }
 
 const DEFAULT_TEXT_SIZE_MM = 1;
+const DEFAULT_LINE_HEIGHT_MULTIPLIER = 1.2;
 
 const emptyBounds = {
   minX: 0,
@@ -53,16 +55,30 @@ const boundsForContours = (contours: TextContour[]): TextContoursResult["bounds"
   return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 };
 
-export const textToContours = (text: string, options: TextToContoursOptions = {}): TextContoursResult => {
-  const trimmedText = text.trim();
+const translateContours = (contours: TextContour[], offsetY: number): TextContour[] =>
+  contours.map((contour) => contour.map((point) => ({ x: point.x, y: point.y + offsetY })));
 
-  if (trimmedText.length === 0) {
+export const textToContours = (text: string, options: TextToContoursOptions = {}): TextContoursResult => {
+  const lines = text
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
     return { contours: [], bounds: emptyBounds };
   }
 
-  const contours = opentypeToContours(options.font ?? loadFontSync(), trimmedText, {
-    textSizeMm: options.textSizeMm ?? DEFAULT_TEXT_SIZE_MM,
-    curveTolerance: options.curveTolerance,
+  const textSizeMm = options.textSizeMm ?? DEFAULT_TEXT_SIZE_MM;
+  const lineHeightMm = options.lineHeightMm ?? textSizeMm * DEFAULT_LINE_HEIGHT_MULTIPLIER;
+  const font = options.font ?? loadFontSync();
+  const firstLineOffsetY = -((lines.length - 1) * lineHeightMm) / 2;
+  const contours = lines.flatMap((line, index) => {
+    const lineContours = opentypeToContours(font, line, {
+      textSizeMm,
+      curveTolerance: options.curveTolerance,
+    });
+
+    return translateContours(lineContours, firstLineOffsetY + index * lineHeightMm);
   });
 
   return { contours, bounds: boundsForContours(contours) };

@@ -32,14 +32,64 @@ const createPart = (
   },
 });
 
+
+const WHITE_SPACE = /\s+/u;
+
+const contoursFromText = (text: string, textSize: number): TextContour[] =>
+  textToContours(text, { textSizeMm: textSize }).contours.map((contour) =>
+    contour.map((point) => [point.x, point.y] as const),
+  );
+
+const contoursFitCircle = (contours: readonly TextContour[], usableRadius: number): boolean => {
+  if (contours.length === 0) {
+    return true;
+  }
+
+  return fitTextToCircle(contours, 1, usableRadius, 0, "fixed").diagnostics.fits;
+};
+
+const wrapTextForCircle = (text: string, textSize: number, usableRadius: number): string => {
+  const words = text.trim().split(WHITE_SPACE).filter((word) => word.length > 0);
+
+  if (words.length <= 1) {
+    return words.join("");
+  }
+
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const candidateLine = currentLine.length === 0 ? word : `${currentLine} ${word}`;
+    const candidateText = [...lines, candidateLine].join("\n");
+
+    if (contoursFitCircle(contoursFromText(candidateText, textSize), usableRadius)) {
+      currentLine = candidateLine;
+      continue;
+    }
+
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      lines.push(word);
+      currentLine = "";
+    }
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines.join("\n");
+};
+
 const createFittedTextContours = (
   faceParameters: FaceParameters,
   fitMode: CoinParameters["fitMode"],
   usableRadius: number,
 ): FittedTextContours => {
-  const scaledContours = textToContours(faceParameters.text, { textSizeMm: faceParameters.textSize }).contours.map((contour) =>
-    contour.map((point) => [point.x, point.y] as const),
-  );
+  const wrappedText = wrapTextForCircle(faceParameters.text, faceParameters.textSize, usableRadius);
+  const scaledContours = contoursFromText(wrappedText, faceParameters.textSize);
   const effectiveFitMode: CircleTextFitMode = faceParameters.autoFit && fitMode === "shrink-only" ? "shrink-only" : "fixed";
   const fittedText = fitTextToCircle(
     scaledContours,
