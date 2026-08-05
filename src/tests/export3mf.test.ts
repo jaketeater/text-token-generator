@@ -1,66 +1,76 @@
+import { booleans, primitives, transforms } from "@jscad/modeling";
 import { describe, expect, it } from "vitest";
-import { strFromU8, unzipSync, zipSync } from "fflate";
+import { strFromU8, unzipSync } from "fflate";
 
+import { create3mfPackage } from "../export/create3mfPackage";
+import { createModelXml, type ModelPart } from "../export/createModelXml";
+import { meshToTriangles } from "../export/meshToTriangles";
+import { DEFAULT_COIN_PARAMETERS } from "../model/defaults";
 import { COIN_PART_NAMES } from "../model/generatedCoin";
 
-const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>';
-
 const PARTS = [
-  { objectId: 1, name: COIN_PART_NAMES.body, color: "#d1d5db", materialId: 1 },
-  { objectId: 2, name: COIN_PART_NAMES.borderRing, color: "#9ca3af", materialId: 2 },
-  { objectId: 3, name: COIN_PART_NAMES.topText, color: "#111827", materialId: 3 },
-  { objectId: 4, name: COIN_PART_NAMES.bottomText, color: "#111827", materialId: 4 },
+  { objectId: 1, name: COIN_PART_NAMES.body, color: DEFAULT_COIN_PARAMETERS.bodyColor },
+  { objectId: 2, name: COIN_PART_NAMES.borderRing, color: DEFAULT_COIN_PARAMETERS.borderColor },
+  { objectId: 3, name: COIN_PART_NAMES.topText, color: DEFAULT_COIN_PARAMETERS.topFace.color },
+  { objectId: 4, name: COIN_PART_NAMES.bottomText, color: DEFAULT_COIN_PARAMETERS.bottomFace.color },
 ] as const;
 
-const PARENT_OBJECT_ID = 5;
+const buildDefaultRealCoinParts = (): ModelPart[] => {
+  const { diameter, thickness, borderWidth, circleSegments, topFace, bottomFace } =
+    DEFAULT_COIN_PARAMETERS;
+  const radius = diameter / 2;
+  const topSurfaceZ = thickness / 2;
+  const textDepth = Math.max(topFace.depth, bottomFace.depth);
 
-const generatePhase1Compatibility3mf = (): Uint8Array => {
-  const contentTypes = `${XML_DECLARATION}
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
-</Types>`;
+  const body = primitives.cylinder({ radius, height: thickness, segments: circleSegments });
+  const borderRing = booleans.subtract(
+    primitives.cylinder({ radius, height: thickness + textDepth, segments: circleSegments }),
+    primitives.cylinder({
+      radius: radius - borderWidth,
+      height: thickness + textDepth * 2,
+      segments: circleSegments,
+    }),
+  );
+  const topText = transforms.translate(
+    [0, radius * 0.23, topSurfaceZ + topFace.depth / 2],
+    primitives.cuboid({ size: [topFace.text.length * topFace.textSize * 0.55, topFace.textSize, topFace.depth] }),
+  );
+  const bottomText = transforms.translate(
+    [0, -radius * 0.27, topSurfaceZ + bottomFace.depth / 2],
+    primitives.cuboid({
+      size: [bottomFace.text.length * bottomFace.textSize * 0.55, bottomFace.textSize, bottomFace.depth],
+    }),
+  );
 
-  const relationships = `${XML_DECLARATION}
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
-</Relationships>`;
-
-  const materials = PARTS.map(
-    (part) =>
-      `<basematerial id="${part.materialId}" name="${part.name}" displaycolor="${part.color}"/>`,
-  ).join("");
-
-  const meshObjects = PARTS.map(
-    (part) => `<object id="${part.objectId}" type="model" name="${part.name}" pid="1" pindex="${
-      part.materialId - 1
-    }"><mesh><vertices><vertex x="0" y="0" z="0"/><vertex x="1" y="0" z="0"/><vertex x="0" y="1" z="0"/></vertices><triangles><triangle v1="0" v2="1" v3="2"/></triangles></mesh></object>`,
-  ).join("");
-
-  const components = PARTS.map(
-    (part) => `<component objectid="${part.objectId}"/>`,
-  ).join("");
-
-  const model = `${XML_DECLARATION}
-<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
-  <resources>
-    <basematerials id="1">${materials}</basematerials>
-    ${meshObjects}
-    <object id="${PARENT_OBJECT_ID}" type="model" name="Text Token"><components>${components}</components></object>
-  </resources>
-  <build><item objectid="${PARENT_OBJECT_ID}"/></build>
-</model>`;
-
-  return zipSync({
-    "[Content_Types].xml": new TextEncoder().encode(contentTypes),
-    "_rels/.rels": new TextEncoder().encode(relationships),
-    "3D/3dmodel.model": new TextEncoder().encode(model),
-  });
+  return [
+    { id: 1, name: COIN_PART_NAMES.body, color: DEFAULT_COIN_PARAMETERS.bodyColor, mesh: meshToTriangles(body) },
+    {
+      id: 2,
+      name: COIN_PART_NAMES.borderRing,
+      color: DEFAULT_COIN_PARAMETERS.borderColor,
+      mesh: meshToTriangles(borderRing),
+    },
+    { id: 3, name: COIN_PART_NAMES.topText, color: topFace.color, mesh: meshToTriangles(topText) },
+    { id: 4, name: COIN_PART_NAMES.bottomText, color: bottomFace.color, mesh: meshToTriangles(bottomText) },
+  ];
 };
 
-describe("Phase 1 compatibility 3MF export", () => {
-  it("emits the required package files, mesh objects, components, build item, names, and colors", () => {
-    const archive = generatePhase1Compatibility3mf();
+const elementChildren = (element: Element, tagName: string): Element[] =>
+  Array.from(element.children).filter((child) => child.localName === tagName);
+
+const parseModelXml = (modelXml: string): XMLDocument => {
+  const document = new DOMParser().parseFromString(modelXml, "application/xml");
+  const parserError = document.querySelector("parsererror");
+
+  expect(parserError?.textContent ?? "").toBe("");
+
+  return document;
+};
+
+describe("3MF export", () => {
+  it("exports a default real coin as mesh components under a single parent build item", () => {
+    const parts = buildDefaultRealCoinParts();
+    const archive = create3mfPackage(createModelXml(parts));
     const files = unzipSync(archive);
 
     expect(files).toHaveProperty("[Content_Types].xml");
@@ -68,28 +78,57 @@ describe("Phase 1 compatibility 3MF export", () => {
     expect(files).toHaveProperty("3D/3dmodel.model");
 
     const modelXml = strFromU8(files["3D/3dmodel.model"]);
+    const modelDocument = parseModelXml(modelXml);
+    const model = modelDocument.getElementsByTagName("model")[0];
 
-    expect(modelXml).toContain('unit="millimeter"');
+    expect(model).toBeDefined();
+    expect(model.getAttribute("unit")).toBe("millimeter");
 
-    const meshObjectMatches = modelXml.match(/<object\b(?=[^>]*\btype="model")(?=[\s\S]*?<mesh>)/g) ?? [];
-    expect(meshObjectMatches).toHaveLength(4);
-
-    const parentObjectMatch = modelXml.match(
-      new RegExp(`<object\\b[^>]*\\bid="${PARENT_OBJECT_ID}"[^>]*>[\\s\\S]*?<components>([\\s\\S]*?)</components>[\\s\\S]*?</object>`),
+    const resources = model.getElementsByTagName("resources")[0];
+    const resourceObjects = elementChildren(resources, "object");
+    const meshObjects = resourceObjects.filter((object) => elementChildren(object, "mesh").length === 1);
+    const parentObjects = resourceObjects.filter(
+      (object) => elementChildren(object, "components").length === 1,
     );
-    expect(parentObjectMatch).not.toBeNull();
-    expect(parentObjectMatch?.[1].match(/<component\b/g) ?? []).toHaveLength(4);
 
-    const buildMatch = modelXml.match(/<build>([\s\S]*?)<\/build>/);
-    expect(buildMatch).not.toBeNull();
-    const buildItemMatches = buildMatch?.[1].match(/<item\b[^>]*>/g) ?? [];
-    expect(buildItemMatches).toHaveLength(1);
-    expect(buildItemMatches[0]).toContain(`objectid="${PARENT_OBJECT_ID}"`);
+    expect(meshObjects).toHaveLength(4);
+    expect(parentObjects).toHaveLength(1);
+
+    const parentObject = parentObjects[0];
+    const parentObjectId = parentObject.getAttribute("id");
+    const parentComponents = parentObject.getElementsByTagName("component");
+
+    expect(parentObjectId).toBe("5");
+    expect(elementChildren(parentObject, "mesh")).toHaveLength(0);
+    expect(parentComponents).toHaveLength(4);
+    expect(Array.from(parentComponents).map((component) => component.getAttribute("objectid"))).toEqual([
+      "1",
+      "2",
+      "3",
+      "4",
+    ]);
+
+    const build = model.getElementsByTagName("build")[0];
+    const buildItems = elementChildren(build, "item");
+
+    expect(buildItems).toHaveLength(1);
+    expect(buildItems[0].getAttribute("objectid")).toBe(parentObjectId);
+    expect(PARTS.map((part) => part.objectId.toString())).not.toContain(
+      buildItems[0].getAttribute("objectid"),
+    );
 
     for (const part of PARTS) {
-      expect(modelXml).toContain(`name="${part.name}"`);
-      expect(modelXml).toContain(`displaycolor="${part.color}"`);
-      expect(modelXml).toContain(`pindex="${part.materialId - 1}"`);
+      const meshObject = meshObjects.find((object) => object.getAttribute("id") === part.objectId.toString());
+
+      expect(meshObject).toBeDefined();
+      expect(meshObject?.getAttribute("name")).toBe(part.name);
+      expect(meshObject?.getAttribute("partnumber")).toBe(part.name);
+
+      const metadata = Array.from(meshObject?.getElementsByTagName("metadata") ?? []);
+      expect(metadata.find((entry) => entry.getAttribute("name") === "name")?.textContent).toBe(part.name);
+      expect(metadata.find((entry) => entry.getAttribute("name") === "color")?.textContent).toBe(part.color);
+      expect(meshObject?.getElementsByTagName("vertex").length).toBeGreaterThan(0);
+      expect(meshObject?.getElementsByTagName("triangle").length).toBeGreaterThan(0);
     }
   });
 });
