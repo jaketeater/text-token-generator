@@ -1,5 +1,6 @@
 import { primitives } from "@jscad/modeling";
 
+import { getFontForFace } from "../font/loadFont";
 import { fitTextToCircle, type PositionedTextLayout } from "../layout/fitTextToCircle";
 import type { CoinParameters } from "../model/coinParameters";
 import { GEOMETRY_EPSILON_MM } from "../model/defaults";
@@ -41,10 +42,12 @@ export const generateCoin = (parameters: CoinParameters): GeneratedCoin => {
   const topLayout: PositionedTextLayout = fitTextToCircle(parameters.top, {
     layoutRadius,
     curveTolerance: parameters.curveTolerance,
+    font: getFontForFace(parameters.top.bold),
   });
   const bottomLayout: PositionedTextLayout = fitTextToCircle(parameters.bottom, {
     layoutRadius,
     curveTolerance: parameters.curveTolerance,
+    font: getFontForFace(parameters.bottom.bold),
   });
 
   const validation = validateCoinParameters(parameters, topLayout, bottomLayout);

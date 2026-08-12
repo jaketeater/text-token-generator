@@ -4,3 +4,4 @@ dist/
 
 # Loaded locally by `npm run load:font`; binary font files are not committed.
 src/assets/DejaVuSans.ttf
+src/assets/DejaVuSans-Bold.ttf

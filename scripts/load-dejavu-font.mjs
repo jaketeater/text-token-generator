@@ -2,17 +2,27 @@
 import { copyFile, mkdir, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-const DEFAULT_SOURCE_PATHS = [
-  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-  "/usr/local/share/fonts/dejavu/DejaVuSans.ttf",
+const FONT_FILES = [
+  {
+    name: "DejaVuSans.ttf",
+    defaultSources: [
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+      "/usr/local/share/fonts/dejavu/DejaVuSans.ttf",
+    ],
+  },
+  {
+    name: "DejaVuSans-Bold.ttf",
+    defaultSources: [
+      "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+      "/usr/local/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    ],
+  },
 ];
-const destinationPath = resolve("src/assets/DejaVuSans.ttf");
 
 const sourceFromArgs = process.argv.find((argument) => argument.startsWith("--source="))?.slice("--source=".length);
-const sourceCandidates = sourceFromArgs ? [sourceFromArgs] : DEFAULT_SOURCE_PATHS;
 
-const findReadableSource = async () => {
-  for (const candidate of sourceCandidates) {
+const findReadableSource = async (candidates) => {
+  for (const candidate of candidates) {
     try {
       const stats = await stat(candidate);
       if (stats.isFile() && stats.size > 0) {
@@ -23,13 +33,17 @@ const findReadableSource = async () => {
     }
   }
 
-  throw new Error(
-    `Unable to find DejaVuSans.ttf. Pass an explicit path with --source=/path/to/DejaVuSans.ttf. Tried: ${sourceCandidates.join(", ")}`,
-  );
+  throw new Error(`Unable to find font file. Tried: ${candidates.join(", ")}`);
 };
 
-const sourcePath = await findReadableSource();
-await mkdir(dirname(destinationPath), { recursive: true });
-await copyFile(sourcePath, destinationPath);
+await mkdir(resolve("src/assets"), { recursive: true });
 
-console.log(`Loaded DejaVu Sans font from ${sourcePath} into ${destinationPath}.`);
+for (const font of FONT_FILES) {
+  const destinationPath = resolve("src/assets", font.name);
+  const sourceCandidates = sourceFromArgs
+    ? [resolve(dirname(sourceFromArgs), font.name)]
+    : font.defaultSources;
+  const sourcePath = await findReadableSource(sourceCandidates);
+  await copyFile(sourcePath, destinationPath);
+  console.log(`Loaded ${font.name} from ${sourcePath} into ${destinationPath}.`);
+}

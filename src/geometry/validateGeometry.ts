@@ -56,6 +56,35 @@ export const validateCoinParameters = (
     );
   }
 
+  if (!Number.isFinite(parameters.edgeRadius) || parameters.edgeRadius < 0) {
+    push(
+      messages,
+      "error",
+      "edgeRadius",
+      "edgeRadius.invalid",
+      "Edge radius must be zero or a positive number.",
+    );
+  } else {
+    if (parameters.edgeRadius > parameters.thickness / 2) {
+      push(
+        messages,
+        "error",
+        "edgeRadius",
+        "edgeRadius.tooTall",
+        "Edge radius cannot exceed half the coin thickness.",
+      );
+    }
+    if (parameters.edgeRadius > parameters.borderWidth) {
+      push(
+        messages,
+        "error",
+        "edgeRadius",
+        "edgeRadius.tooWide",
+        "Edge radius cannot exceed the border width.",
+      );
+    }
+  }
+
   for (const face of [
     { key: "top", face: parameters.top },
     { key: "bottom", face: parameters.bottom },

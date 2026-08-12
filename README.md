@@ -22,7 +22,7 @@ npm test
 npm run build
 ```
 
-DejaVu Sans is copied locally by `npm run load:font` (runs automatically before `dev`, `test`, and `build`).
+DejaVu Sans (regular and bold) are copied locally by `npm run load:font` (runs automatically before `dev`, `test`, and `build`). Each face can optionally use Bold.
 
 ## Export
 
@@ -58,6 +58,6 @@ Print and inspect toolpaths for:
 
 ## Scope
 
-Included: browser-only generation, DejaVu Sans, adjustable dimensions, circle-aware wrap, shrink-to-fit, forced newlines, preview cameras, four-part 3MF.
+Included: browser-only generation, DejaVu Sans (regular/bold per face), adjustable dimensions, circle-aware wrap, shrink-to-fit, forced newlines, preview cameras, four-part 3MF.
 
 Deferred: extra fonts, hyphenation, curved perimeter text, logos, CSV batch, STL, saved projects, embedded Snapmaker filament/G-code.

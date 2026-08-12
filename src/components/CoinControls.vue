@@ -19,10 +19,16 @@ const parameters = defineModel<CoinParameters>({ required: true })
       </label>
     </div>
 
-    <label class="field">
-      <span>Border width <small>mm</small></span>
-      <input v-model.number="parameters.borderWidth" type="number" min="0.1" step="0.1" />
-    </label>
+    <div class="split-fields">
+      <label class="field">
+        <span>Border width <small>mm</small></span>
+        <input v-model.number="parameters.borderWidth" type="number" min="0.1" step="0.1" />
+      </label>
+      <label class="field">
+        <span>Edge radius <small>mm</small></span>
+        <input v-model.number="parameters.edgeRadius" type="number" min="0" step="0.1" />
+      </label>
+    </div>
 
     <div class="split-fields">
       <label class="field color-field">

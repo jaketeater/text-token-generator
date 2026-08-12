@@ -86,6 +86,6 @@ describe("export 3mf", () => {
     const ringInner = coin.bounds.innerRadius;
     const bodyOuter = ringInner - BODY_RING_CLEARANCE_MM;
     expect(bodyOuter).toBeLessThan(ringInner);
-    expect(bodyOuter).toBeCloseTo(17.5 - BODY_RING_CLEARANCE_MM, 6);
+    expect(bodyOuter).toBeCloseTo(23 - BODY_RING_CLEARANCE_MM, 6);
   });
 });

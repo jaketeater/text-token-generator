@@ -11,6 +11,8 @@ export interface FaceParameters {
   lineSpacing: number;
   rotationDegrees: number;
   autoShrink: boolean;
+  /** Use DejaVu Sans Bold for this face's text. */
+  bold: boolean;
   /** Bottom face only: physical flip convention when viewing underside. */
   flipOrientation?: BottomFlipOrientation;
 }
@@ -19,6 +21,8 @@ export interface CoinParameters {
   diameter: number;
   thickness: number;
   borderWidth: number;
+  /** Fillet radius on the top and bottom outer rim of the border ring (mm). */
+  edgeRadius: number;
 
   bodyColor: string;
   borderColor: string;

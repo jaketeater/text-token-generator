@@ -3,9 +3,14 @@ import { resolve } from "node:path";
 
 import opentype from "opentype.js";
 
-import { setFontForTesting } from "../font/loadFont";
+import { setFontsForTesting } from "../font/loadFont";
 
 export const ensureTestFont = (): void => {
-  const buffer = readFileSync(resolve(process.cwd(), "src/assets/DejaVuSans.ttf")).buffer;
-  setFontForTesting(opentype.parse(buffer));
+  const regular = opentype.parse(
+    readFileSync(resolve(process.cwd(), "src/assets/DejaVuSans.ttf")).buffer,
+  );
+  const bold = opentype.parse(
+    readFileSync(resolve(process.cwd(), "src/assets/DejaVuSans-Bold.ttf")).buffer,
+  );
+  setFontsForTesting(regular, bold);
 };

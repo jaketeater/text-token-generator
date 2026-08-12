@@ -58,6 +58,11 @@ const face = defineModel<FaceParameters>({ required: true })
       <span>Automatic shrink-to-fit</span>
     </label>
 
+    <label class="checkbox-field">
+      <input v-model="face.bold" type="checkbox" />
+      <span>Bold</span>
+    </label>
+
     <fieldset v-if="faceName === 'bottom'" class="choice-group">
       <legend>Coin-flip orientation</legend>
       <label>

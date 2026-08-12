@@ -9,7 +9,7 @@ import TextLayoutDetails from './components/TextLayoutDetails.vue'
 import ValidationMessages from './components/ValidationMessages.vue'
 import { downloadCoin3mf } from './export/export3mf'
 import { generateCoin } from './geometry/createCoin'
-import { loadFont } from './font/loadFont'
+import { loadFonts } from './font/loadFont'
 import type { CoinParameters } from './model/coinParameters'
 import { DEFAULT_COIN_PARAMETERS } from './model/defaults'
 import type { GeneratedCoin, CoinPartKey } from './model/generatedCoin'
@@ -50,7 +50,7 @@ const scheduleRegenerate = () => {
 
 watch(parameters, () => scheduleRegenerate(), { deep: true })
 
-loadFont()
+loadFonts()
   .then(() => {
     fontReady.value = true
     regenerate()

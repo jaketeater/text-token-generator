@@ -41,6 +41,14 @@ describe("text contours", () => {
     expect(measured.width).toBeCloseTo(expected, 5);
   });
 
+  it("uses a wider advance width for bold than regular", () => {
+    const text = "TOKEN";
+    const size = 10;
+    const regularWidth = loadFontSync(false).getAdvanceWidth(text, size, { kerning: true });
+    const boldWidth = loadFontSync(true).getAdvanceWidth(text, size, { kerning: true });
+    expect(boldWidth).toBeGreaterThan(regularWidth);
+  });
+
   it("handles sample strings", () => {
     const font = loadFontSync();
     for (const text of ["ABC", "O", "B8", "$10", "100", "MOM", "A B C"]) {
